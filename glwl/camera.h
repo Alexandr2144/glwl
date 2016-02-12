@@ -8,11 +8,8 @@
 namespace glwl {
 	class camera {
 	public:
-		camera(uniform& cbuf, const char* mat_view_name) : _cbuf(cbuf){
-			reset();
-			_cbuf.bind();
-			_offset = cbuf[mat_view_name].offset();
-		}
+		camera(buf::ubo<>::part cbuf, GLint offset)
+			: _cbuf(cbuf), _offset(offset) { reset(); }
 
 		void reset() {
 			_pos = glm::vec3(0, 0, 0);
@@ -21,7 +18,7 @@ namespace glwl {
 			update();
 		}
 
-		void update() { _cbuf.write(_offset, _view); }
+		void update() const { _cbuf.bind(); _cbuf.write(_offset, _view); }
 
 		void spawn(glm::vec3 pos) { _pos = pos; update(); }
 
@@ -52,7 +49,7 @@ namespace glwl {
 		glm::vec3 _right;
 		glm::vec3 _pos;
 
-		uniform& _cbuf;
+		mutable buf::ubo<>::part _cbuf;
 		GLuint _offset;
 	};
 }

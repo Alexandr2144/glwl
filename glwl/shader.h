@@ -24,7 +24,7 @@ namespace glwl {
 				glGetShaderiv(_id, GL_INFO_LOG_LENGTH, &length);
 				_log = blob(length, nullptr);
 				glGetShaderInfoLog(_id, length, &length, (char*)_log.data());
-				if (throw_except) throw glwl::exception((char*)_log.data());
+				if (throw_except) throw _GLWL exception((char*)_log.data());
 			}
 		}
 		~shader() { if (_id) glDeleteShader(_id); }
@@ -40,7 +40,7 @@ namespace glwl {
 		blob _log;
 		inline void _check(bool throw_except, const char* msg) const {
 			GLenum error = glGetError();
-			if (error && throw_except) throw glwl::exception("%s. [code: %d]", msg, error);
+			if (error && throw_except) throw _GLWL exception("%s. [code: %d]", msg, error);
 		}
 	};
 
@@ -105,7 +105,7 @@ namespace glwl {
 			_check("Can't set uniform object");
 		}
 
-		glwl::uniform uniform(const GLchar* name) const { return glwl::uniform(_id, name); }
+		_GLWL uniform uniform(const GLchar* name) const { return _GLWL uniform(_id, name); }
 
 		void bind() const { 
 			glUseProgram(_id);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "mesh.h"
+#include "buffer2.h"
 
 namespace glwl {
 	namespace ut {
@@ -26,11 +27,15 @@ namespace glwl {
 				vec2 texcoord;
 			};
 
-			glwl::vbo<vertex> vertices;
-			glwl::ibo<GLubyte> indices;
-			glwl::vao array;
+			_GLWL buf::vbo <> vertices;
+			_GLWL buf::ibo<GLubyte> indices;
+			_GLWL vao array;
 
 			box(cull_mode cull = none, vec3 pos = { 0, 0, 0 }, vec3 size = { 1, 1, 1 }) {
+				_GLWL buf::stream<glwl::buf::vbo<>, vertex,
+					glwl::buf::b::cached<1024 >> vs(&vertices);
+				_GLWL buf::stream<glwl::buf::ibo<GLubyte>, GLubyte,
+					glwl::buf::b::cached<1024 >> is(&indices);
 				vec3 v[] = {
 					vec3{ -size.x, -size.y, -size.z } +pos, vec3{ -size.x, size.y, -size.z } +pos,
 					vec3{  size.x, -size.y, -size.z } +pos, vec3{  size.x, size.y, -size.z } +pos,
@@ -39,22 +44,23 @@ namespace glwl {
 				};
 				vec3 n[] = {
 					vec3{ 0, 0, -1 }, vec3{ -1, 0, 0 }, vec3{ 0, -1, 0 },
-					vec3{ 0, 0, 1 }, vec3{ 1, 0, 0 }, vec3{ 0, 1, 0 }
+					vec3{ 0, 0, 1 },  vec3{ 1, 0, 0 },  vec3{ 0, 1, 0 }
 				};
 				vec2 t[] = { vec2{ 0, 0 }, vec2{ 0, 1 }, vec2{ 1, 0 }, vec2{ 1, 1 } };
-				/*vertices << _STD initializer_list<vertex> {
+				vs << _STD initializer_list<vertex> {
 					{ v[0], n[0], t[0] }, { v[1], n[0], t[1] }, { v[2], n[0], t[2] }, { v[3], n[0], t[3] },
 					{ v[4], n[1], t[0] }, { v[5], n[1], t[1] }, { v[0], n[1], t[2] }, { v[1], n[1], t[3] },
 					{ v[4], n[2], t[0] }, { v[0], n[2], t[1] }, { v[6], n[2], t[2] }, { v[2], n[2], t[3] },
 					{ v[6], n[3], t[0] }, { v[7], n[3], t[1] }, { v[4], n[3], t[2] }, { v[5], n[3], t[3] },
 					{ v[2], n[4], t[0] }, { v[3], n[4], t[1] }, { v[6], n[4], t[2] }, { v[7], n[4], t[3] },
 					{ v[1], n[5], t[0] }, { v[5], n[5], t[1] }, { v[3], n[5], t[2] }, { v[7], n[5], t[3] },
-				} << endl;
-				indices << _STD initializer_list<GLubyte> { 0, 1, 2, 2, 1, 3, 4, 5, 6, 6, 5, 7, 8,
-					9, 10, 10, 9, 11, 12, 13, 14, 14, 13, 15, 16, 17, 18, 18, 17, 19, 20, 21, 22, 22, 21, 23 } << endl;*/
+				};
+				is << _STD initializer_list<GLubyte> { 0, 1, 2, 2, 1, 3, 4, 5, 6, 6, 5, 7, 8,
+					9, 10, 10, 9, 11, 12, 13, 14, 14, 13, 15, 16, 17, 18, 18, 17, 19, 20, 21, 22, 22, 21, 23 };
 				indices.mode = GL_TRIANGLES;
+				indices.count = 36;
 
-				GLubyte baseidx = 0;
+				/*GLubyte baseidx = 0;
 				if (!(cull&front)) { if (cull&front_inv) vertices << _STD initializer_list<vertex>
 						{ { v[0], n[3], t[0] }, { v[2], n[3], t[1] }, { v[1], n[3], t[2] }, { v[3], n[3], t[3] } };
 					else vertices << _STD initializer_list<vertex>
@@ -90,12 +96,12 @@ namespace glwl {
 					else vertices << _STD initializer_list<vertex>
 						{ { v[1], n[5], t[0] }, { v[5], n[5], t[1] }, { v[3], n[5], t[2] }, { v[7], n[5], t[3] } };
 					indices << _STD initializer_list<GLubyte> { GLubyte(0 + baseidx), GLubyte(1 + baseidx),
-						GLubyte(2 + baseidx), GLubyte(2 + baseidx), GLubyte(1 + baseidx), GLubyte(3 + baseidx) }; baseidx += 4;}
-				vertices.flush();
-				indices.flush();
+						GLubyte(2 + baseidx), GLubyte(2 + baseidx), GLubyte(1 + baseidx), GLubyte(3 + baseidx) }; baseidx += 4;}*/
+				vs.flush();
+				is.flush();
 
 				array.bind();
-				array[0] << vertices;
+				array[0] << vs;
 				array(0)[0][0] << format<vec3>();
 				array(1)[0][sizeof(vec3)] << format<vec3>();
 				array(2)[0][2 * sizeof(vec3)] << format<vec2>();

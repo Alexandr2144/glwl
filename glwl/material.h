@@ -1,6 +1,7 @@
 #pragma once
 
 #include "buffer.h"
+#include "buffer2.h"
 
 namespace glwl {
 	struct pixel {
@@ -56,7 +57,7 @@ namespace glwl {
 
 	class material {
 	public:
-		glwl::texture& texture;
+		_GLWL texture& texture;
 		glm::vec4 ambient = { 1, 1, 1, 1 };
 		glm::vec4 diffuse = { 1, 1, 1, 1 };
 		glm::vec4 specular = { 1, 1, 1, 1 };
@@ -64,7 +65,27 @@ namespace glwl {
 		float shininess = 0.0f;
 		float roughness = 0.5f;
 
-		material(uniform& cbuf, glwl::texture& tex) : texture(tex), _cbuf(cbuf) { _init(); }
+		struct offsets {
+			GLuint ambient;
+			GLuint diffuse;
+			GLuint specular;
+			GLuint emission;
+			GLuint shininess;
+			GLuint roughness;
+
+			static offsets default(_uniform ufrm) {
+				offsets out;
+				GLuint indices[6];
+				ufrm.indices(indices, {
+					"material.ambient", "material.diffuse",
+					"material.specular", "material.emission",
+					"material.shininess", "material.roughness"});
+				ufrm.offsets(6, indices, (GLint*)&out);
+			}
+		};
+
+		material(buf::ubo<>& cbuf, offsets off, _GLWL texture& tex) 
+			: texture(tex), _cbuf(cbuf), _offset(off) {}
 
 		void update() {
 			_cbuf.bind();
@@ -76,24 +97,7 @@ namespace glwl {
 			_cbuf.write(_offset.roughness, roughness);
 		}
 	private:
-		void _init() {
-			_cbuf.bind();
-			_offset.ambient = _cbuf.require("material.ambient").offset;
-			_offset.diffuse = _cbuf.require("material.diffuse").offset;
-			_offset.specular = _cbuf.require("material.specular").offset;
-			_offset.emission = _cbuf.require("material.emission").offset;
-			_offset.shininess = _cbuf.require("material.shininess").offset;
-			_offset.roughness = _cbuf.require("material.roughness").offset;
-		}
-
-		uniform& _cbuf;
-		struct {
-			GLuint ambient;
-			GLuint diffuse;
-			GLuint specular;
-			GLuint emission;
-			GLuint shininess;
-			GLuint roughness;
-		} _offset;
+		buf::ubo<>& _cbuf;
+		offsets _offset;
 	};
 }

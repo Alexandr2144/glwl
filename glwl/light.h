@@ -30,9 +30,32 @@ namespace glwl {
 			float angle;
 		} spot[max];
 
-		light(const glm::vec3& cam_pos, uniform& cbuf) : _cbuf(cbuf), _cam(cam_pos) { _init(); }
+		struct offsets {
+			GLuint ambient;
+			GLuint camera;
+			GLuint point_color;
+			GLuint point_enable;
+			GLuint point_position;
+			GLuint point_attenuation;
+			GLuint point_stride;
 
-		void update() {
+			static offsets default(_uniform ufrm) {
+				offsets out;
+				GLuint indices[7];
+				ufrm.indices(indices, {
+					"light.ambient", "light.camera",
+					"light.point[0].color", "light.point[0].enable",
+					"light.point[0].position", "light.point[0].attenuation",
+					"light.point[1].color" });
+					ufrm.offsets(7, indices, (GLint*)&out);
+					out.point_stride -= out.point_color;
+			}
+		};
+
+		light(buf::ubo<>::part cbuf, offsets off, const glm::vec3& cam_pos)
+			: _cbuf(cbuf), _offset(off), _cam(cam_pos) {}
+
+		void update() const {
 			_cbuf.bind();
 			_cbuf.write(_offset.camera, _cam);
 			_cbuf.write(_offset.ambient, ambient);
@@ -50,29 +73,9 @@ namespace glwl {
 
 		glm::vec4 ambient;
 	private:
-		void _init() {
-			_cbuf.bind();
-			_offset.camera = _cbuf["light.camera"].offset();
-			_offset.ambient = _cbuf["light.ambient"].offset();
-
-			_offset.point_color = _cbuf["light.point[0].color"].offset();
-			_offset.point_enable = _cbuf["light.point[0].enable"].offset();
-			_offset.point_position = _cbuf["light.point[0].position"].offset();
-			_offset.point_attenuation = _cbuf["light.point[0].attenuation"].offset();
-			_offset.point_stride = _cbuf["light.point[1].color"].offset() - _offset.point_color;
-		}
-
 		const glm::vec3& _cam;
-		uniform& _cbuf;
+		mutable buf::ubo<>::part _cbuf;
 
-		struct {
-			GLuint ambient;
-			GLuint camera;
-			GLuint point_color;
-			GLuint point_enable;
-			GLuint point_position;
-			GLuint point_attenuation;
-			GLuint point_stride;
-		} _offset;
+		offsets _offset;
 	};
 }

@@ -4,6 +4,9 @@
 #include "shader.h"
 //#include "material.h"
 
+#include "core.h"
+#include "buffer2.h"
+
 #include <vector>
 
 #include <glm\mat4x4.hpp>
@@ -24,7 +27,7 @@ namespace glwl {
 			buf& operator[](GLuint offset) { _offset = offset; return *this; }
 			buf& operator<<(offset&& off) { _offset = off.val; return *this; }
 			template <typename AttribTy>
-			void operator<<(glwl::format<AttribTy>&& form) {
+			void operator<<(_GLWL format<AttribTy>&& form) {
 				typedef type<AttribTy> inf;
 				glVertexAttribFormat(_attrib, inf::count, inf::id, form.norm, _offset);
 				glVertexAttribBinding(_attrib, _buf);
@@ -41,6 +44,10 @@ namespace glwl {
 			setbuf& operator<<(offset&& off) { _offset = off.val; return *this; }
 			template <typename ValueTy>
 			void operator<<(const vbo<ValueTy>& vbuffer) {
+				glBindVertexBuffer(_buf, vbuffer.rdbuf()->id(), _offset, sizeof(ValueTy));
+			}
+			template <class Buf, class ValueTy, class Cache>
+			void operator<<(const _GLWL buf::stream<Buf, ValueTy, Cache>& vbuffer) {
 				glBindVertexBuffer(_buf, vbuffer.rdbuf()->id(), _offset, sizeof(ValueTy));
 			}
 		};
@@ -103,15 +110,14 @@ namespace glwl {
 
 	class location {
 	public:
-		location(uniform& cbuf, const char* uf_mat_name) : location(cbuf, uf_mat_name, glm::mat4()) {}
-		location(uniform& cbuf, const char* uf_mat_name, const glm::mat4& mat) : _mat(mat), _cbuf(cbuf) {
-			_offset = _cbuf[uf_mat_name].offset();
-		}
+		location(buf::ubo<>::part cbuf, GLint offset) : location(cbuf, offset, glm::mat4()) {}
+		location(buf::ubo<>::part cbuf, GLint offset, const glm::mat4& mat)
+			: _mat(mat), _cbuf(cbuf), _offset(offset) {}
 
 		location& operator=(const glm::mat4& mat) { _mat = mat; return *this; }
 
 		const glm::mat4& get() const { return _mat; }
-		void update() const { _cbuf.write(_offset, _mat); }
+		void update() const { _cbuf.bind(); _cbuf.write(_offset, _mat); }
 
 		void move(const glm::vec3& position) { _mat = glm::translate(_mat, position); }
 		void spawn(const glm::vec3& position) { _mat[3] = glm::vec4(position, _mat[3].w); }
@@ -127,8 +133,8 @@ namespace glwl {
 
 		operator const glm::mat4&() const { return _mat; }
 	private:
+		mutable buf::ubo<>::part _cbuf;
 		glm::mat4 _mat;
-		uniform& _cbuf;
 		GLuint _offset;
 	};
 

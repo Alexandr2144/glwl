@@ -269,8 +269,8 @@ namespace glwl {
 			flush(); _offset = pos;
 		}
 
-		basic_stream& operator<<(basic_stream&(*manip)(basic_stream&)) { manip(*this); return *this; }
-		const basic_stream& operator>>(const basic_stream&(*manip)(const basic_stream&)) const { manip(*this); return *this; }
+		//basic_stream& operator<<(basic_stream&(*manip)(basic_stream&)) { manip(*this); return *this; }
+		//const basic_stream& operator>>(const basic_stream&(*manip)(const basic_stream&)) const { manip(*this); return *this; }
 	private:
 		inline void _flush(size_t size, const void* data) {
 			if (!size) return;
@@ -305,17 +305,17 @@ namespace glwl {
 		inline GLuint count() const { return basic_stream::tell() / sizeof(_Ty); }
 		inline void seek(GLuint pos) { basic_stream::seek(pos*sizeof(_Ty)); }
 
-		inline stream& operator<<(const _Ty& out) { write(1, &out); return *this; }
+		//inline stream& operator<<(const _Ty& out) { write(1, &out); return *this; }
 		inline stream& operator<<(_STD initializer_list<_Ty> out) { write(out.size(), out.begin()); return *this; }
-		inline stream& operator<<(int out) {
+		/*inline stream& operator<<(int out) {
 			_Ty&& val = static_cast<_Ty&&>(out);
 			write(1, &val); return *this;
-		}
+		}*/
 
-		inline stream& operator>>(_Ty& out) { read(sizeof(_Ty), &out); return *this; }
+		//inline stream& operator>>(_Ty& out) { read(sizeof(_Ty), &out); return *this; }
 
-		inline basic_stream& operator<<(basic_stream&(*manip)(basic_stream&)) { manip(*this); return *this; }
-		inline const basic_stream& operator>>(const basic_stream&(*manip)(const basic_stream&)) const { manip(*this); return *this; }
+		//inline basic_stream& operator<<(basic_stream&(*manip)(basic_stream&)) { manip(*this); return *this; }
+		//inline const basic_stream& operator>>(const basic_stream&(*manip)(const basic_stream&)) const { manip(*this); return *this; }
 	};
 
 	basic_stream& endl(basic_stream& os) {
