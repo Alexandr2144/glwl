@@ -4,7 +4,46 @@
 #include <GL\freeglut.h>
 #include <glm\glm.hpp>
 
+#include "traits.h"
+
 namespace glwl {
+	//!!! - To do delete
+	class blob {
+	private:
+		void* _data;
+		size_t _size;
+	public:
+		~blob() { if (_data) free(_data); }
+		blob() : _data(nullptr), _size(0) {}
+		blob(const char* filename) {
+			FILE* file;
+			if (fopen_s(&file, filename, "rb")) throw 0;
+			_size = _filelength(_fileno(file));
+			_data = malloc(_size + 1);
+			_size = fread(_data, 1, _size, file);
+			((char*)_data)[_size] = 0;
+		}
+		blob(size_t size, const void* data) : _size(size) {
+			_data = malloc(size);
+			if (data) _STD memcpy(_data, data, size);
+		}
+		blob(size_t size, void* data, int) : _size(size), _data(data) {}
+
+		blob(blob&& src) : _data(src._data), _size(src._size) {
+			src._data = nullptr;
+		}
+		blob& operator=(blob&& Right) {
+			this->~blob();
+			new(this) blob(_STD forward<blob>(Right));
+			return *this;
+		}
+
+		void* data() { return _data; }
+		const void* data() const { return _data; }
+		size_t size() { return _size; }
+	};
+	//!!! - To do delete
+
 	class shader : public unknown {
 	public:
 		enum src_type { bin, text, file_bin, file_text };
@@ -24,7 +63,7 @@ namespace glwl {
 				glGetShaderiv(_id, GL_INFO_LOG_LENGTH, &length);
 				_log = blob(length, nullptr);
 				glGetShaderInfoLog(_id, length, &length, (char*)_log.data());
-				if (throw_except) throw glwl::exception((char*)_log.data());
+				if (throw_except) throw _GLWL exception((char*)_log.data());
 			}
 		}
 		~shader() { if (_id) glDeleteShader(_id); }
@@ -40,7 +79,7 @@ namespace glwl {
 		blob _log;
 		inline void _check(bool throw_except, const char* msg) const {
 			GLenum error = glGetError();
-			if (error && throw_except) throw glwl::exception("%s. [code: %d]", msg, error);
+			if (error && throw_except) throw _GLWL exception("%s. [code: %d]", msg, error);
 		}
 	};
 
@@ -105,7 +144,7 @@ namespace glwl {
 			_check("Can't set uniform object");
 		}
 
-		glwl::uniform uniform(const GLchar* name) const { return glwl::uniform(_id, name); }
+		//_GLWL uniform uniform(const GLchar* name) const { return _GLWL uniform(_id, name); }
 
 		void bind() const { 
 			glUseProgram(_id);

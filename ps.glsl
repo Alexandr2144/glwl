@@ -12,6 +12,8 @@ struct PointLight {
 struct Light {
 	vec3 camera;
 	vec4 ambient;
+
+	int point_cnt;
 	PointLight point[10];
 };
 
@@ -24,7 +26,8 @@ struct Material {
 	float roughness;
 };
 
-uniform MaterialBlock { Material material; };
+uniform MaterialBlock { 
+	Material material; };
 uniform LightBlock {
 	Light light;
 
@@ -41,10 +44,10 @@ in vec2 vOutTexCoord;
 out vec4 vFragColor;
 
 void main() {
-	if(!ambient) { vFragColor = material.emission * material.emission.w; return; }
+	//if(!ambient) { vFragColor = material.emission * material.emission.w; return; }
 	vFragColor = light.ambient * light.ambient.w * 
 		material.ambient * material.ambient.w + material.emission * material.emission.w;
-	if(!diffuse) return;
+	//if(!diffuse) return;
 
 	vec4 materialDiff = material.diffuse * material.diffuse.w;
 	vec4 materialSpec = material.specular * material.specular.w;
@@ -57,7 +60,7 @@ void main() {
 	float NdotH2, NdotH2_r, m2;
 	float G, F, D, K;
 
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < light.point_cnt; i++) {
 		if(!light.point[i].enable) continue;
 		Color = light.point[i].color * light.point[i].color.w;
 
@@ -92,6 +95,5 @@ void main() {
 		K = min(1.0, (F*G*D)/(NdotV*NdotL + 1.0e-7));
 
 		vFragColor += Color * materialSpec * K * attenuation;
-
 	}
 }
