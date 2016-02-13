@@ -1,26 +1,12 @@
-#include "buffer.h"
+//#include "buffer.h"
 
 #include <glm\vec3.hpp>
 
 namespace glwl {
-	struct light_point {
-		int enable;
-		glm::vec4 color;
-		glm::vec3 position;
-		glm::vec3 attenuation;
+	namespace light {
+		//light_point point[max];
 
-		light_point(int on = 0, glm::vec4 colr = { 0, 0, 0, 0 }, glm::vec3 pos = { 0, 0, 0 }, glm::vec3 att = { 1, 0, 0 })
-			: enable(on), color(colr), position(pos), attenuation(att) {}
-		void toggle() { enable = !enable; }
-	};
-
-	class light {
-	public:
-		static const GLuint max = 10;
-
-		light_point point[max];
-
-		struct spot {
+		/*struct spot {
 			bool enable;
 			glm::vec4 position;
 			glm::vec4 direction;
@@ -28,54 +14,73 @@ namespace glwl {
 			float brightness;
 			float distance;
 			float angle;
-		} spot[max];
+		} spot[max];*/
 
-		struct offsets {
-			GLuint ambient;
-			GLuint camera;
-			GLuint point_color;
-			GLuint point_enable;
-			GLuint point_position;
-			GLuint point_attenuation;
-			GLuint point_stride;
+		struct global {
+			struct properties {
+				const glm::vec3* camera;
+				glm::vec4 ambient;
+			} prop;
+			struct offsets {
+				GLuint camera;
+				GLuint ambient;
+				void shift(GLuint offset) {
+					camera += offset, ambient += offset; }
+				static offsets default(_uniform ufrm) {
+					offsets out;
+					GLuint indices[2];
+					ufrm.indices(indices, { "light.camera", "light.ambient" });
+					ufrm.offsets(2, indices, (GLint*)&out);
+					return out;
+				}
+			} offset;
 
-			static offsets default(_uniform ufrm) {
-				offsets out;
-				GLuint indices[7];
-				ufrm.indices(indices, {
-					"light.ambient", "light.camera",
-					"light.point[0].color", "light.point[0].enable",
-					"light.point[0].position", "light.point[0].attenuation",
-					"light.point[1].color" });
-					ufrm.offsets(7, indices, (GLint*)&out);
-					out.point_stride -= out.point_color;
+			global(properties&& p, offsets&& off)
+				: prop(p), offset(off) {}
+
+			void load(buf::ubo<>& ub) const {
+				ub.write(offset.camera, prop.camera);
+				ub.write(offset.ambient, prop.ambient);
 			}
 		};
 
-		light(buf::ubo<>::part cbuf, offsets off, const glm::vec3& cam_pos)
-			: _cbuf(cbuf), _offset(off), _cam(cam_pos) {}
+		struct point {
+			struct properties {
+				int enable;
+				glm::vec4 color;
+				glm::vec3 position;
+				glm::vec3 attenuation;
+			} prop;
+			struct offsets {
+				GLuint color;
+				GLuint enable;
+				GLuint position;
+				GLuint attenuation;
+				void shift(GLuint offset) {
+					enable += offset, attenuation += offset,
+						position += offset, color += offset;
+				}
+				static offsets default(_uniform& ufrm) {
+					offsets out;
+					GLuint indices[4];
+					ufrm.indices(indices, {
+						"light.point[0].color", "light.point[0].enable",
+						"light.point[0].position", "light.point[0].attenuation" });
+					ufrm.offsets(4, indices, (GLint*)&out);
+					return out;
+				}
+			} offset;
 
-		void update() const {
-			_cbuf.bind();
-			_cbuf.write(_offset.camera, _cam);
-			_cbuf.write(_offset.ambient, ambient);
+			point(properties&& p, offsets&& off) 
+				: prop(p), offset(off) {}
 
-			GLuint spot_offset = 0;
-			GLuint point_offset = 0;
-			for (GLuint i = 0; i < max; i++) {
-				_cbuf.write(point_offset + _offset.point_color, point[i].color);
-				_cbuf.write(point_offset + _offset.point_enable, point[i].enable);
-				_cbuf.write(point_offset + _offset.point_position, point[i].position);
-				_cbuf.write(point_offset + _offset.point_attenuation, point[i].attenuation);
-				point_offset += _offset.point_stride;
+			void toggle() { prop.enable = !prop.enable; }
+			void load(buf::ubo<>& ub) const {
+				ub.write(offset.color, prop.color);
+				ub.write(offset.enable, prop.enable);
+				ub.write(offset.position, prop.position);
+				ub.write(offset.attenuation, prop.attenuation);
 			}
-		}
-
-		glm::vec4 ambient;
-	private:
-		const glm::vec3& _cam;
-		mutable buf::ubo<>::part _cbuf;
-
-		offsets _offset;
+		};
 	};
-}
+};

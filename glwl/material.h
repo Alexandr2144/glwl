@@ -1,7 +1,6 @@
 #pragma once
 
 #include "buffer.h"
-#include "buffer2.h"
 
 namespace glwl {
 	struct pixel {
@@ -58,12 +57,25 @@ namespace glwl {
 	class material {
 	public:
 		_GLWL texture& texture;
-		glm::vec4 ambient = { 1, 1, 1, 1 };
-		glm::vec4 diffuse = { 1, 1, 1, 1 };
-		glm::vec4 specular = { 1, 1, 1, 1 };
-		glm::vec4 emission = { 0, 0, 0, 0 };
-		float shininess = 0.0f;
-		float roughness = 0.5f;
+
+		struct properties {
+			glm::vec4 ambient;
+			glm::vec4 diffuse;
+			glm::vec4 specular;
+			glm::vec4 emission;
+			float shininess;
+			float roughness;
+
+			properties(glm::vec4&& _ambient = { 1, 1, 1, 1 }, 
+				glm::vec4&& _diffuse = { 1, 1, 1, 1 },
+				glm::vec4&& _specular = { 1, 1, 1, 1 },
+				glm::vec4&& _emission = { 0, 0, 0, 0 },
+				float _shininess = 0.0f,
+				float _roughness = 0.5f)
+					: ambient(_ambient), diffuse(_diffuse),
+					specular(_specular), emission(_emission), 
+					shininess(_shininess), roughness(_roughness) {}
+		} prop;
 
 		struct offsets {
 			GLuint ambient;
@@ -73,31 +85,33 @@ namespace glwl {
 			GLuint shininess;
 			GLuint roughness;
 
+			void shift(GLuint offset) {
+				ambient += offset, diffuse += offset,
+				specular += offset, emission += offset,
+				shininess += offset, roughness += offset;
+			}
 			static offsets default(_uniform ufrm) {
 				offsets out;
 				GLuint indices[6];
 				ufrm.indices(indices, {
 					"material.ambient", "material.diffuse",
 					"material.specular", "material.emission",
-					"material.shininess", "material.roughness"});
+					"material.shininess", "material.roughness" });
 				ufrm.offsets(6, indices, (GLint*)&out);
+				return out;
 			}
-		};
+		} offset;
 
-		material(buf::ubo<>& cbuf, offsets off, _GLWL texture& tex) 
-			: texture(tex), _cbuf(cbuf), _offset(off) {}
+		material(properties&& p, offsets&& off, _GLWL texture&& tex) 
+			: prop(p), offset(off), texture(tex) {}
 
-		void update() {
-			_cbuf.bind();
-			_cbuf.write(_offset.ambient, ambient);
-			_cbuf.write(_offset.diffuse, diffuse);
-			_cbuf.write(_offset.specular, specular);
-			_cbuf.write(_offset.emission, emission);
-			_cbuf.write(_offset.shininess, shininess);
-			_cbuf.write(_offset.roughness, roughness);
+		void load(buf::ubo<>& ubuf, offsets off) {
+			ubuf.write(off.ambient, prop.ambient);
+			ubuf.write(off.diffuse, prop.diffuse);
+			ubuf.write(off.specular, prop.specular);
+			ubuf.write(off.emission, prop.emission);
+			ubuf.write(off.shininess, prop.shininess);
+			ubuf.write(off.roughness, prop.roughness);
 		}
-	private:
-		buf::ubo<>& _cbuf;
-		offsets _offset;
 	};
 }

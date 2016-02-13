@@ -17,7 +17,10 @@
 #pragma comment(lib,"freeglut.lib")
 #pragma comment(lib,"glew32.lib")
 
-//#define _GLWL ::glwl::
+//!!!
+#include <io.h>
+
+#define _GLWL ::glwl::
 
 #define GLWL_MEM_ZERO(value) _STD memset(&value, NULL, sizeof(value));
 #define GLWL_CTOR_RV_STD(myclass) \
@@ -82,11 +85,13 @@ namespace glwl {
 		}
 	};
 
-	class _exception : public _XSTD exception {
+#undef GLWL_CASE_MACRO
+
+	class exception : public _XSTD exception {
 	public:
-		_exception() {}
+		exception() {}
 		template <typename... ArgsTy>
-		_exception(const char* format, ArgsTy... args) : _XSTD exception(_msg, 0) {
+		exception(const char* format, ArgsTy... args) : _XSTD exception(_msg, 0) {
 			sprintf_s(_msg, format, args...);
 		}
 	private:
@@ -118,9 +123,12 @@ namespace glwl {
 				template <typename FTy, typename... ArgsTy>
 				inline void call(FTy f, ArgsTy... args) const { f(args...); }
 
-				inline void check_ptr(const void* ptr, const char* msg) {}
-				inline void check_size(GLuint size, GLuint expect, const char* msg) {}
-				inline void check_type(GLenum type, GLenum expect, const char* msg) {}
+				template <typename... MsgTypes>
+				inline void check(bool err, MsgTypes... msg) {}
+
+				//inline void check_ptr(const void* ptr, const char* msg) {}
+				//inline void check_size(GLuint size, GLuint expect, const char* msg) {}
+				//inline void check_type(GLenum type, GLenum expect, const char* msg) {}
 
 				GLenum glerr() { return glGetError(); }
 				code error() { return sucess; }
@@ -156,7 +164,7 @@ namespace glwl {
 				inline void construct(FTy f, ArgsTy... args) { f(args...); }
 				template <typename FTy, typename... ArgsTy>
 				inline void destruct(FTy f, ArgsTy... args) { f(args...); }
-
+				
 #define GLWL_BUF_THROW(proc, format) \
 	case bad_##proc: throw _GLWL exception(#proc##" function failure. Arguments: {\n"##format##"} \nError message : %s"
 #define GLWL_BUF_EXCEPT_CALL_BEG \
@@ -171,7 +179,7 @@ namespace glwl {
 				inline void call(FTy f, A1Ty a1) const {
 					f(a1);
 					GLWL_BUF_EXCEPT_CALL_BEG
-						GLWL_BUF_THROW(glUnmapBuffer, "\tType: %s\n"),
+					GLWL_BUF_THROW(glUnmapBuffer, "\tType: %s\n"),
 						macro::str(a1), macro::str(_glerr));
 					GLWL_BUF_EXCEPT_CALL_END
 				}
@@ -179,7 +187,7 @@ namespace glwl {
 				inline void call(FTy f, A1Ty a1, A2Ty a2) const {
 					f(a1, a2);
 					GLWL_BUF_EXCEPT_CALL_BEG
-						GLWL_BUF_THROW(glBindBuffer, "\tType: %s,\n\tID: %d\n"),
+					GLWL_BUF_THROW(glBindBuffer, "\tType: %s,\n\tID: %d\n"),
 						macro::str(a1), a2, macro::str(_glerr));
 					GLWL_BUF_EXCEPT_CALL_END
 				}
@@ -187,7 +195,7 @@ namespace glwl {
 				inline void call(FTy f, A1Ty a1, A2Ty a2, A3Ty a3) const {
 					f(a1, a2, a3);
 					GLWL_BUF_EXCEPT_CALL_BEG
-						GLWL_BUF_THROW(glBindBufferBase, "\tType: %s,\n\tBindIdx: %d,\n\tID: %d\n"),
+					GLWL_BUF_THROW(glBindBufferBase, "\tType: %s,\n\tBindIdx: %d,\n\tID: %d\n"),
 						macro::str(a1), a2, a3, macro::str(_glerr));
 					GLWL_BUF_EXCEPT_CALL_END
 				}
@@ -195,7 +203,7 @@ namespace glwl {
 				inline void call(FTy f, A1Ty a1, A2Ty a2, A3Ty a3, A4Ty a4) const {
 					f(a1, a2, a3, a4);
 					GLWL_BUF_EXCEPT_CALL_BEG
-						GLWL_BUF_THROW(glBufferData, "\tType: %s,\n\tSize: %d,\n\tData: %x,\n\tUsage: %s\n"),
+					GLWL_BUF_THROW(glBufferData, "\tType: %s,\n\tSize: %d,\n\tData: %x,\n\tUsage: %s\n"),
 						macro::str(a1), a2, a3, macro::str((GLenum)a4), macro::str(_glerr));
 					GLWL_BUF_THROW(glBufferStorage, "\tType: %s,\n\tSize: %d,\n\tData: %x,\n\tFlags: %x\n"),
 						macro::str(a1), a2, a3, a4, macro::str(_glerr));
@@ -208,7 +216,7 @@ namespace glwl {
 				inline void call(FTy f, A1Ty a1, A2Ty a2, A3Ty a3, A4Ty a4, A5Ty a5) const {
 					f(a1, a2, a3, a4, a5);
 					GLWL_BUF_EXCEPT_CALL_BEG
-						GLWL_BUF_THROW(glBindBufferRange, "\tType: %s,\n\tBindIdx: %d,\n\tID: %x,\n\tOffset: %x,\n\tSize: %d\n"),
+					GLWL_BUF_THROW(glBindBufferRange, "\tType: %s,\n\tBindIdx: %d,\n\tID: %x,\n\tOffset: %d,\n\tSize: %d\n"),
 						macro::str(a1), a2, a3, a4, a5, macro::str(_glerr));
 					GLWL_BUF_THROW(glCopyBufferSubData, "\tTarget1: %s,\n\tTarget2: %s,\n\tOffset1: %d,\n\tOffset2: %d,\n\tSize: %d\n"),
 						macro::str(a1), macro::str(a2), a3, a4, a5, macro::str(_glerr));
@@ -219,7 +227,11 @@ namespace glwl {
 #undef GLWL_BUF_EXCEPT_CALL_BEG
 #undef GLWL_BUF_EXCEPT_CALL_END
 
-				inline void check_ptr(const void* ptr, const char* msg) const {
+				template <typename... MsgTypes>
+				inline void check(bool err, MsgTypes... msg) const {
+					if (err) throw _GLWL exception(msg...); }
+
+				/*inline void check_ptr(const void* ptr, const char* msg) const {
 					if (ptr) return;
 					throw _GLWL exception("Invalid pointer: %s", msg);
 				}
@@ -230,7 +242,7 @@ namespace glwl {
 				inline void check_type(GLenum type, GLenum expect, const char* msg) const {
 					if (type == expect) return;
 					throw _GLWL exception("Types mismath: %s", msg);
-				}
+				}*/
 
 				GLenum glerr() const { return _glerr; }
 				code error() const { return _error; }
@@ -300,12 +312,12 @@ namespace glwl {
 				inline void unmap(GLenum type) { glUnmapBuffer(type); }
 				inline mapptr map(GLenum type, GLenum acess, GLsizeiptr length, GLintptr offset) {
 					void* ptr = glMapBufferRange(type, offset, length, acess);
-					checker::check_ptr(ptr, "can't map this buffer");
+					checker::check(ptr == nullptr, "can't map this buffer");
 					return ptr;
 				}
 				inline mapptr map(GLenum type, GLenum acess) {
 					void* ptr = glMapBuffer(type, acess);
-					checker::check_ptr(ptr, "can't map this buffer");
+					checker::check(ptr == nullptr, "can't map this buffer");
 					return ptr;
 				}
 			protected:
@@ -335,13 +347,13 @@ namespace glwl {
 				inline mapptr map(GLenum type, GLenum acess, GLsizeiptr length, GLintptr offset) {
 					_mapped = true;
 					void* ptr = glMapBufferRange(type, offset, length, acess);
-					checker::check_ptr(ptr, "can't map this buffer");
+					checker::check(ptr == nullptr, "can't map this buffer");
 					return mapptr(ptr, type, *this);
 				}
 				inline mapptr map(GLenum type, GLenum acess) {
 					_mapped = true;
 					void* ptr = glMapBuffer(type, acess);
-					checker::check_ptr(ptr, "can't map this buffer");
+					checker::check(ptr == nullptr, "can't map this buffer");
 					return mapptr(ptr, type, *this);
 				}
 
@@ -443,7 +455,8 @@ namespace glwl {
 			inline void bind(GLuint index, GLintptr offset) const {
 				base::bind(_type, index, offset, _len); }
 			inline void bind(GLuint index, GLintptr offset, GLsizeiptr length) const {
-				checker::check_size(_len, length);
+				checker::check((GLsizeiptr)_len < length, 
+					"Bind function failure. Buffer too small [buflen: %d, len: %d]", _len, length);
 				base::bind(_type, index, offset, length); }
 
 			inline void unmap() { base::unmap(_type); }
@@ -463,8 +476,8 @@ namespace glwl {
 			inline void write(GLuint offset, GLuint size, const void* data) {
 				base::write(_type, offset, size, data); }
 			inline void copy(GLuint offset, cref src, GLuint src_offset, GLuint write_len) {
-				checker::check_size(offset + write_len, _len);
-				checker::check_size(src_offset + write_len, src._len);
+				checker::check(offset + write_len == _len, "Copy error: dest buffer too small");
+				checker::check(src_offset + write_len == src._len, "Copy error: src buffer too small");
 				base::copy(offset, src, src_offset, write_len);
 			}
 
@@ -507,7 +520,7 @@ namespace glwl {
 		};
 
 
-		namespace b {
+		namespace a {
 			struct no_cached_unsafe {
 				template <class BufferTy>
 				class impl {
@@ -524,12 +537,10 @@ namespace glwl {
 					inline void read(GLuint size, char* data) {
 						_buf->read(_offset, size, (void*)data); }
 					inline void write(GLuint size, const char* data) {
-						GLuint len = _offset + size;
-						if (len > _buf->size()) _buf->resize(len);
 						_buf->write(_offset, size, data); }
-					impl(BufferTy* buf) : _buf(buf) {}
+					impl(BufferTy* buf, GLuint pos) : _buf(buf), _offset(pos) {}
 					~impl() {}
-				private:
+				protected:
 					GLintptr _offset;
 					BufferTy* _buf;
 				};
@@ -539,17 +550,15 @@ namespace glwl {
 				template <class BufferTy>
 				class impl : public no_cached_unsafe::impl<BufferTy> {
 				private:
-					typedef no_cached_unsafe::impl base;
+					typedef no_cached_unsafe::impl<BufferTy> base;
 				public:
 					inline void seek(GLintptr pos) {
-						if (pos > _endbuf) throw _GLWL exception(
-							"bufstream seek: out of range [pos: %d, bufsize %d].", pos, _endbuf);
+						if (pos < 0) throw _GLWL exception(
+							"bufstream shift: out of range [pos: %d < 0].", pos);
 						base::seek(pos);
 					}
 					inline void shift(GLintptr offset) {
 						GLintptr pos = base::tell() + offset;
-						if (pos > _endbuf) throw _GLWL exception(
-							"bufstream shift: out of range [pos: %d, bufsize %d].", pos, _endbuf);
 						if (pos < 0) throw _GLWL exception(
 							"bufstream shift: out of range [pos: %d < 0].", pos);
 						base::seek(pos);
@@ -558,15 +567,13 @@ namespace glwl {
 					inline void clear() { _endbuf = 0, base::clear(); }
 				protected:
 					inline void write(GLuint size, const char* data) {
-						GLintptr delta = size + base::tell() - _endbuf;
-						if (delta > 0) _endbuf += delta;
-						base::write(buf, size, data);
+						GLuint len = _offset + size;
+						if (len > _buf->capacity()) _buf->resize(len);
+						base::write(size, data);
 					}
 
-					impl(BufferTy* buf) : base(buf) {}
+					impl(BufferTy* buf, GLuint pos) : base(buf, pos) {}
 					~impl() {}
-				private:
-					GLintptr _endbuf;
 				};
 			};
 
@@ -589,8 +596,6 @@ namespace glwl {
 					inline void flush() {
 						GLuint size = _last - _base;
 						if (!size) return;
-						GLuint len = _offset + size;
-						if (len > _buf->capacity()) _buf->resize(len);
 						_buf->write(_offset, size, _base);
 						_last = _base, _offset += size;
 					}
@@ -599,10 +604,10 @@ namespace glwl {
 						_buf->read(_offset, size, (void*)data); }
 					inline void write(GLuint size, const char* data) {
 						_STD memcpy(_last, data, size);
-						_last += size;
-					}
+						_last += size; }
 
-					impl(BufferTy* buf) : _buf(buf), _last(_base) {}
+					impl(BufferTy* buf, GLuint pos) 
+						: _buf(buf), _last(_base), _offset(pos) {}
 					~impl() {}
 
 					GLintptr _offset;
@@ -639,8 +644,15 @@ namespace glwl {
 							base::shift_far(offset);
 						else _last = pos;
 					}
+					inline void flush() {
+						GLuint size = _last - _base;
+						if (!size) return;
+						GLuint len = _offset + size;
+						if (len > _buf->capacity()) _buf->resize(len);
+						_buf->write(_offset, size, _base);
+						_last = _base, _offset += size;
+					}
 
-					inline void flush() { base::flush(); }
 					inline BufferTy* rdbuf() const { return base::rdbuf(); }
 					inline void rdbuf(BufferTy* bufptr) { flush(); base::rdbuf(bufptr); }
 				protected:
@@ -648,7 +660,7 @@ namespace glwl {
 						_buf->read(_offset, size, (void*)data); }
 					inline void write(GLuint size, const char* data) {
 						if (size > CacheSize) {
-							base::flush();
+							flush();
 							_write(size, data);
 							return;
 						}
@@ -661,7 +673,7 @@ namespace glwl {
 						base::write(tail, data);
 					}
 
-					impl(BufferTy* buf) : base(buf), _end(_base + CacheSize) {}
+					impl(BufferTy* buf, GLuint pos) : base(buf, pos), _end(_base + CacheSize) {}
 					~impl() {}
 				private:
 					inline void _write(GLuint size, const char* data) {
@@ -674,70 +686,121 @@ namespace glwl {
 			};
 		};
 
-		template <class BufferTy, template <class> class CachePolicyImpl>
-		class basic_stream_impl : public CachePolicyImpl<BufferTy> {
+		namespace b {
+			template <class CachePolicy>
+			class autobind : public CachePolicy {
+			protected:
+				template <typename BufferTy>
+				autobind(BufferTy* buf, GLuint pos) : CachePolicy(buf, pos) {}
+				~autobind() {}
+				void _bind() { CachePolicy::rdbuf()->bind(); }
+			};
+			template <class CachePolicy>
+			class manual : public CachePolicy {
+			public:
+				void bind() { CachePolicy::rdbuf()->bind(); }
+			protected:
+				template <typename BufferTy>
+				manual(BufferTy* buf, GLuint pos) : CachePolicy(buf, pos) {}
+				~manual() {}
+				void _bind() {}
+			};
+		};
+
+		template <class BufferTy, 
+			template <class> class CachePolicyImpl, 
+			template <class> class BindPolicy>
+		class basic_stream_impl : public BindPolicy<CachePolicyImpl<BufferTy>> {
 		private:
-			typedef CachePolicyImpl<BufferTy> cache;
+			typedef BindPolicy<CachePolicyImpl<BufferTy>> cache;
 			typedef basic_stream_impl mytype;
 		public:
 			~basic_stream_impl() { flush(); }
 
-			basic_stream_impl(BufferTy* buf) : cache(buf) {}
+			basic_stream_impl(BufferTy* buf, GLuint pos = NULL) : cache(buf, pos) {}
 			basic_stream_impl(basic_stream_impl&& src)
 				: cache(_STD forward<BufferTy>(src)) {}
 			GLWL_CTOR_LV_DELETE(basic_stream_impl)
 			GLWL_ASSIG_RV_STD(basic_stream_impl)
 
 			inline void reserve(GLuint size, const char* data = nullptr) {
-				cache::rdbuf()->bind(); cache::rdbuf()->reserve(size, data); }
+				_bind(); cache::rdbuf()->reserve(size, data); }
 			inline void resize(GLuint size, const char* data = nullptr) {
-				cache::rdbuf()->bind(); cache::rdbuf()->resize(size, data); }
-			inline void read(size_t size, char* data) { cache::read(size, data); }
-			inline void write(size_t size, const char* data) { cache::write(size, data); }
+				_bind(); cache::rdbuf()->resize(size, data); }
+			//inline void read(size_t size, char* data) { cache::read(size, data); }
+			//inline void write(size_t size, const char* data) { cache::write(size, data); }
 
-			inline void unmap() { cache::rdbuf()->bind(); cache::rdbuf()->unmap(_type); }
-			inline typename BufferTy::mapptr map(GLenum acess = GL_READ_WRITE) {
-				cache::rdbuf()->bind();
-				return cache::rdbuf()->map(acess);
-			}
+			inline void unmap() { _bind(); cache::rdbuf()->unmap(_type); }
 			inline bool mapped() { return BufferTy::mapped(); }
+
+			inline typename BufferTy::mapptr map(GLenum acess = GL_READ_WRITE) {
+				_bind(); return cache::rdbuf()->map(acess); }
+
 			inline typename BufferTy::mapptr map(GLintptr offset,
 				GLenum acess_ext = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT) {
-				cache::rdbuf()->bind();
-				return cache::rdbuf()->map(offset, acess_ext);
-			}
+				_bind(); return cache::rdbuf()->map(offset, acess_ext); }
+
 			inline typename BufferTy::mapptr map(GLintptr offset, GLsizeiptr length,
 				GLenum acess_ext = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT) {
-				cache::rdbuf()->bind();
-				return cache::rdbuf()->map(offset, length, acess_ext);
-			}
-
-			inline void clear() {
-				cache::rdbuf()->bind();
-				cache::rdbuf()->reserve(0);
-				cache::clear();
-			}
+				_bind(); return cache::rdbuf()->map(offset, length, acess_ext); }
 
 			mytype& operator<<(mytype&(*manip)(mytype&)) { manip(*this); return *this; }
 			const mytype& operator>>(const mytype&(*manip)(const mytype&)) const { manip(*this); return *this; }
 		};
 
-		template <class BufferTy, class CachePolicy>
-		class basic_stream : public basic_stream_impl<BufferTy, CachePolicy::impl> {
+		template <
+			class BufferTy, 
+			class CachePolicy, 
+			template <class> class BindPolicy>
+		class basic_stream : public basic_stream_impl<BufferTy, CachePolicy::impl, BindPolicy> {
 		public:
-			basic_stream(BufferTy* buf) : basic_stream_impl(buf) {}
+			basic_stream(BufferTy* buf, GLuint pos = NULL) : basic_stream_impl(buf, pos) {}
 			GLWL_CTOR_LV_DELETE(basic_stream)
 		};
 
-		template <class BufferTy, class ElemTy, class CachePolicy>
-		class stream : public basic_stream_impl<BufferTy, CachePolicy::impl> {
+		template <
+			class BufferTy,
+			class CachePolicy, 
+			template <class> class BindPolicy>
+		class stream : public basic_stream_impl<BufferTy, CachePolicy::impl, BindPolicy> {
 		private:
-			typedef basic_stream_impl<BufferTy, CachePolicy::impl> base;
+			typedef basic_stream_impl<BufferTy, CachePolicy::impl, BindPolicy> base;
 		public:
-			typedef _STD initializer_list<ElemTy> list;
-
-			stream(BufferTy* buf) : base(buf) {}
+			stream(BufferTy* buf, GLuint pos = NULL) : base(buf, pos) {}
 			GLWL_CTOR_LV_DELETE(stream)
+
+			template <typename ElemTy>
+			inline void read(size_t size, ElemTy* data) { 
+				base::read(size*sizeof(ElemTy), (char*)data); }
+			template <typename ElemTy>
+			inline void write(size_t size, const ElemTy* data) {
+				base::write(size*sizeof(ElemTy), (const char*)data); }
+
+			template <typename ElemTy>
+			inline stream& operator<<(const ElemTy& out) { write(1, &out); return *this; }
+			template <typename ElemTy>
+			inline stream& operator<<(_STD initializer_list<ElemTy> out) { write(out.size(), out.begin()); return *this; }
+
+			template <typename ElemTy, unsigned Size>
+			inline stream& operator>>(ElemTy out[Size]) { read(Size*sizeof(ElemTy), out); return *this; }
+			template <typename ElemTy>
+			inline stream& operator>>(ElemTy& out) { read(sizeof(ElemTy), &out); return *this; }
+
+			inline base& operator<<(base&(*manip)(base&)) { manip(*this); return *this; }
+			inline const base& operator>>(const base&(*manip)(const base&)) const { manip(*this); return *this; }
+		};
+
+		template <
+			class BufferTy, 
+			class ElemTy, 
+			class CachePolicy, 
+			template <class> class BindPolicy>
+		class elem_stream : public basic_stream_impl<BufferTy, CachePolicy::impl, BindPolicy> {
+		private:
+			typedef basic_stream_impl<BufferTy, CachePolicy::impl, BindPolicy> base;
+		public:
+			elem_stream(BufferTy* buf, GLuint pos = NULL) : base(buf, pos) {}
+			GLWL_CTOR_LV_DELETE(elem_stream)
 
 			inline void reserve(GLuint size, const ElemTy* data = nullptr) {
 				base::reserve(size*sizeof(ElemTy), (const char*)data); }
@@ -747,24 +810,22 @@ namespace glwl {
 			inline void read(size_t size, ElemTy* data) { 
 				base::read(size*sizeof(ElemTy), (char*)data); }
 			inline void write(size_t size, const ElemTy* data) {
-				base::write(size*sizeof(ElemTy), (const char*)data);
-			}
+				base::write(size*sizeof(ElemTy), (const char*)data); }
 
 			inline GLuint tell() const { return base::tell() / sizeof(ElemTy); }
 			inline GLuint count() const { return base::tell() / sizeof(ElemTy); }
 			inline void shift(GLuint pos) { base::shift(pos*sizeof(ElemTy)); }
 			inline void seek(GLuint pos) { base::seek(pos*sizeof(ElemTy)); }
 
-			inline stream& operator<<(const ElemTy& out) { write(1, &out); return *this; }
-			inline stream& operator<<(_STD initializer_list<ElemTy> out) { write(out.size(), out.begin()); return *this; }
-			inline stream& operator<<(int out) {
+			inline elem_stream& operator<<(const ElemTy& out) { write(1, &out); return *this; }
+			inline elem_stream& operator<<(_STD initializer_list<ElemTy> out) { write(out.size(), out.begin()); return *this; }
+			inline elem_stream& operator<<(int out) {
 				ElemTy&& val = static_cast<ElemTy&&>(out);
-				write(1, &val); return *this;
-			}
+				write(1, &val); return *this; }
 
 			template <unsigned Size>
-			inline stream& operator>>(ElemTy out[Size]) { read(Size*sizeof(ElemTy), out); return *this; }
-			inline stream& operator>>(ElemTy& out) { read(sizeof(ElemTy), &out); return *this; }
+			inline elem_stream& operator>>(ElemTy out[Size]) { read(Size*sizeof(ElemTy), out); return *this; }
+			inline elem_stream& operator>>(ElemTy& out) { read(sizeof(ElemTy), &out); return *this; }
 
 			inline base& operator<<(base&(*manip)(base&)) { manip(*this); return *this; }
 			inline const base& operator>>(const base&(*manip)(const base&)) const { manip(*this); return *this; }
@@ -772,5 +833,4 @@ namespace glwl {
 	}
 };
 
-#undef GLWL_CASE_MACRO
 #endif //__GLWL_CORE_H

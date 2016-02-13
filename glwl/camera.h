@@ -3,24 +3,27 @@
 
 #include <glm\gtc\matrix_transform.hpp>
 
-#include "buffer.h"
+//#include "buffer.h"
 
 namespace glwl {
 	class camera {
 	public:
-		camera(buf::ubo<>::part cbuf, GLint offset)
-			: _cbuf(cbuf), _offset(offset) { reset(); }
+		/*camera(const _uniform& uf, const char* name, GLuint ubobeg, const glwl::location& viewloc) {
+			uf.require(_view, name); _view.value = viewloc; }
+		camera(const _uniform& uf, const char* name, GLuint ubobeg, const glm::mat4& viewloc) {
+			uf.require(_view, name); _view.value = viewloc; }*/
+		camera(const _uniform& uf, const char* name) {
+			uf.require<glwl::_uniform::pos>(_view, name); reset(); }
+		camera(const _uniform& uf, GLuint index) {
+			uf.require<glwl::_uniform::pos>(_view, index); reset(); }
 
 		void reset() {
 			_pos = glm::vec3(0, 0, 0);
 			_forward = glm::vec3(0, 0, 1);
 			_right = glm::vec3(1, 0, 0);
-			update();
 		}
 
-		void update() const { _cbuf.bind(); _cbuf.write(_offset, _view); }
-
-		void spawn(glm::vec3 pos) { _pos = pos; update(); }
+		void spawn(glm::vec3 pos) { _pos = pos; }
 
 		void move_forward(float speed)  { _pos += speed*_forward; _update(); }
 		void move_back(float speed)		{ _pos -= speed*_forward; _update(); }
@@ -33,23 +36,32 @@ namespace glwl {
 		void look_right(float angle) { _rotate(angle, glm::vec3(0, 1, 0)); }
 
 		const glm::vec3& pos() const { return _pos; }
+		const glm::mat4& getm() const { return _view.value; }
+
+		template <class BufferTy, class CachePolicy,
+			template <class> class BindPolicy>
+		friend buf::stream<BufferTy, CachePolicy, BindPolicy>& operator<<(
+			buf::stream<BufferTy, CachePolicy, BindPolicy>& os, const camera& out);
 	private:
 		inline void _rotate(float angle, const glm::vec3& axis) {
 			_rot = glm::rotate(_rot, angle, axis);
 			_STD memcpy(&_forward, &(glm::vec4(0, 0, 1, 0)*_rot), sizeof(_forward));
 			_right = glm::cross(glm::vec3(0, 1, 0), _forward);
-			_view = glm::lookAt(_pos, _pos + _forward, glm::vec3(0, 1, 0));
+			_view.value = glm::lookAt(_pos, _pos + _forward, glm::vec3(0, 1, 0));
 		}
-		inline void _update() { _view = glm::lookAt(_pos, _pos + _forward, glm::vec3(0, 1, 0)); }
+		inline void _update() { _view.value = glm::lookAt(_pos, _pos + _forward, glm::vec3(0, 1, 0)); }
 
-		glm::mat4 _view;
+		glwl::_uniform::var<glm::mat4, glwl::_uniform::pos> _view;
 		glm::mat4 _rot;
 
 		glm::vec3 _forward;
 		glm::vec3 _right;
 		glm::vec3 _pos;
-
-		mutable buf::ubo<>::part _cbuf;
-		GLuint _offset;
 	};
+
+	template <class BufferTy, class CachePolicy,
+		template <class> class BindPolicy>
+	buf::stream<BufferTy, CachePolicy, BindPolicy>& operator<<(
+		buf::stream<BufferTy, CachePolicy, BindPolicy>& os, const camera& out) {
+		return os << out._view; }
 }

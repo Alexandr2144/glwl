@@ -41,6 +41,9 @@ in vec2 vOutTexCoord;
 out vec4 vFragColor;
 
 void main() {
+	vFragColor = vec4(1, 1, 1, 1);
+	return;
+
 	if(!ambient) { vFragColor = material.emission * material.emission.w; return; }
 	vFragColor = light.ambient * light.ambient.w * 
 		material.ambient * material.ambient.w + material.emission * material.emission.w;

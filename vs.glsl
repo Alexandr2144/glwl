@@ -4,7 +4,7 @@ layout (location = 0) in vec3 vInPosition;
 layout (location = 1) in vec3 vInNormal;
 layout (location = 2) in vec2 vInTexCoord;
 
-uniform Matrixes {
+uniform MatrixBlock {
 	mat4 mView;
 	mat4 mWorld;
 	mat4 mProjection;

@@ -1,11 +1,11 @@
 #pragma once
 
-#include "buffer.h"
+
 #include "shader.h"
 //#include "material.h"
 
 #include "core.h"
-#include "buffer2.h"
+#include "buffer.h"
 
 #include <vector>
 
@@ -25,7 +25,7 @@ namespace glwl {
 		public:
 			buf(GLuint slot, GLuint attr) : proxy(slot, 0), _attrib(attr) {}
 			buf& operator[](GLuint offset) { _offset = offset; return *this; }
-			buf& operator<<(offset&& off) { _offset = off.val; return *this; }
+			//buf& operator<<(offset&& off) { _offset = off.val; return *this; }
 			template <typename AttribTy>
 			void operator<<(_GLWL format<AttribTy>&& form) {
 				typedef type<AttribTy> inf;
@@ -41,14 +41,10 @@ namespace glwl {
 		public:
 			setbuf(GLuint slot) : proxy(slot, 0) {}
 			setbuf& operator[](GLuint offset) { _offset = offset; return *this; }
-			setbuf& operator<<(offset&& off) { _offset = off.val; return *this; }
-			template <typename ValueTy>
-			void operator<<(const vbo<ValueTy>& vbuffer) {
-				glBindVertexBuffer(_buf, vbuffer.rdbuf()->id(), _offset, sizeof(ValueTy));
-			}
-			template <class Buf, class ValueTy, class Cache>
-			void operator<<(const _GLWL buf::stream<Buf, ValueTy, Cache>& vbuffer) {
-				glBindVertexBuffer(_buf, vbuffer.rdbuf()->id(), _offset, sizeof(ValueTy));
+			//setbuf& operator<<(offset&& off) { _offset = off.val; return *this; }
+			template <class Buf, class Elem, class Cache, template <class> class Bind>
+			void operator<<(const _GLWL buf::elem_stream<Buf, Elem, Cache, Bind>& vbuffer) {
+				glBindVertexBuffer(_buf, vbuffer.rdbuf()->id(), _offset, sizeof(Elem));
 			}
 		};
 
@@ -91,10 +87,10 @@ namespace glwl {
 		}
 		void disable_attrib(size_t attrib_slot) { glDisableVertexAttribArray(attrib_slot); }
 
-		template <typename AttribTy>
+		/*template <typename AttribTy>
 		void attach(GLuint buffer_slot, const vbo<AttribTy>& vbuffer, GLintptr offset = 0) {
 			glBindVertexBuffer(buffer_slot, vbuffer.rdbuf().id(), offset, sizeof(AttribTy));
-		}
+		}*/
 
 		setbuf operator[](GLuint buffer_slot) { return setbuf(buffer_slot); }
 		attrib operator()(GLuint attrib_slot) { return attrib(attrib_slot); }
@@ -110,33 +106,51 @@ namespace glwl {
 
 	class location {
 	public:
-		location(buf::ubo<>::part cbuf, GLint offset) : location(cbuf, offset, glm::mat4()) {}
-		location(buf::ubo<>::part cbuf, GLint offset, const glm::mat4& mat)
-			: _mat(mat), _cbuf(cbuf), _offset(offset) {}
+		location(const _uniform& uf, const char* name, const glm::mat4& mat) {
+			uf.require<glwl::_uniform::pos>(_mat, name); _mat.value = mat; }
+		location(const _uniform& uf, GLuint index, const glm::mat4& mat) {
+			uf.require<glwl::_uniform::pos>(_mat, index); _mat.value = mat; }
+		location(const _uniform& uf, const char* name) {
+			uf.require<glwl::_uniform::pos>(_mat, name); }
+		location(const _uniform& uf, GLuint index) {
+			uf.require<glwl::_uniform::pos>(_mat, index); }
+		location(const glm::mat4& mat) {
+			_mat.value = mat; }
+		location() {}
 
-		location& operator=(const glm::mat4& mat) { _mat = mat; return *this; }
+		location& operator=(const glm::mat4& mat) { _mat.value = mat; return *this; }
 
-		const glm::mat4& get() const { return _mat; }
-		void update() const { _cbuf.bind(); _cbuf.write(_offset, _mat); }
+		const glm::mat4& getm() const { return _mat.value; }
 
-		void move(const glm::vec3& position) { _mat = glm::translate(_mat, position); }
-		void spawn(const glm::vec3& position) { _mat[3] = glm::vec4(position, _mat[3].w); }
-		void rotate(float angle, const glm::vec3& axis) { _mat = glm::rotate(_mat, angle, axis); }
-		void scale(const glm::vec3& value) { _mat = glm::scale(_mat, value); }
+		void move(const glm::vec3& position) { _mat.value = glm::translate(_mat.value, position); }
+		void spawn(const glm::vec3& position) { _mat.value[3] = glm::vec4(position, _mat.value[3].w); }
+		void rotate(float angle, const glm::vec3& axis) { _mat.value = glm::rotate(_mat.value, angle, axis); }
+		void scale(const glm::vec3& value) { _mat.value = glm::scale(_mat.value, value); }
 
 		void perspective(float fov, float aspect = 1.6f, float zNear = 0.1f, float zFar = 100.0f) {
-			_mat = glm::perspective(fov, aspect, zNear, zFar); }
+			_mat.value = glm::perspective(fov, aspect, zNear, zFar); }
 		void perspective(float fov, float width, float height, float zNear = 0.1f, float zFar = 100.0f) {
-			_mat = glm::perspectiveFov(fov, width, height, zNear, zFar); }
+			_mat.value = glm::perspectiveFov(fov, width, height, zNear, zFar); }
 		void look(const glm::vec3& position, const glm::vec3& direction, const glm::vec3& up = glm::vec3(0, 1, 0)) {
-			_mat = glm::lookAt(position, position + direction, up); }
+			_mat.value = glm::lookAt(position, position + direction, up); }
 
-		operator const glm::mat4&() const { return _mat; }
+		operator const glm::mat4&() const { return _mat.value; }
+
+		template <class BufferTy, class CachePolicy,
+			template <class> class BindPolicy>
+		friend buf::stream<BufferTy, CachePolicy, BindPolicy>& operator<<(
+			buf::stream<BufferTy, CachePolicy, BindPolicy>& os, const location& out);
 	private:
-		mutable buf::ubo<>::part _cbuf;
-		glm::mat4 _mat;
+		glwl::_uniform::var<glm::mat4, glwl::_uniform::pos> _mat;
 		GLuint _offset;
 	};
+
+	template <class BufferTy, class CachePolicy,
+		template <class> class BindPolicy>
+	buf::stream<BufferTy, CachePolicy, BindPolicy>& operator<<(
+		buf::stream<BufferTy, CachePolicy, BindPolicy>& os, const location& out) {
+		return os << out._mat;
+	}
 
 
 	template <typename ValTy, typename IdxTy = GLuint>
@@ -158,10 +172,10 @@ namespace glwl {
 		_STD vector<IdxTy> _idx;
 	};
 
-	template <typename _ValTy, typename _IdxTy>
+	/*template <typename _ValTy, typename _IdxTy>
 	stream<_ValTy>& operator<<(stream<_ValTy>& os, const vertex_indexed_attrib<_ValTy, _IdxTy>& out) {
 		const size_t len = out.size();
 		for (size_t i = 0; i < len; i++) os << out[i];
 		return os;
-	}
+	}*/
 }
