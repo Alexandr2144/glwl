@@ -51,7 +51,7 @@ namespace glwl {
 			GLWL_ASSIG_LV_STD(vbo)
 		};
 
-		template <
+		/*template <
 			typename BufferTy = buf::raw <
 			buf::a::std_check,
 			buf::b::dynamic,
@@ -68,35 +68,19 @@ namespace glwl {
 			ubo(const ubo& src) : BufferTy(src) {}
 			GLWL_ASSIG_RV_STD(ubo)
 			GLWL_ASSIG_LV_STD(ubo)
-
-			ubo& operator[](GLuint pos) { _pos = pos; return *this; }
-			//ubo& operator<<()
-
-			template <typename ValTy>
-			void write(GLuint pos, GLuint offset, ValTy value) {
-				BufferTy::write(pos, offset, value); }
-			template <typename ValTy>
-			void write(GLuint offset, ValTy value) {
-				BufferTy::write(_pos + offset, sizeof(value), &value); }
-		private:
-			GLuint _pos;
-		};
+		};*/
 	};
 
-	class _uniform {
+	class uniform {
 	public:
-		_uniform(GLuint program) : _prog(program) {}
+		uniform(GLuint program) : _prog(program) {}
 
 		struct pos { GLint offset; };
 		struct value { GLint offset; GLint size; };
-		struct object { GLint offset; GLint size; GLint stride; };
+		struct array { GLint offset; GLint size; GLint stride; };
 
 		template <typename ValTy, typename InfoTy = pos>
-		struct var : InfoTy {
-			ValTy value;
-			void load(buf::ubo<> ub) const {
-				ub.write(offset, value); }
-		};
+		struct var : InfoTy { ValTy value; };
 
 		class block {
 		public:
@@ -106,20 +90,13 @@ namespace glwl {
 				size = GL_UNIFORM_BLOCK_DATA_SIZE,
 			};
 
-			//glBindBufferBase(GL_UNIFORM_BUFFER, index, buf.id());
-			//glUniformBlockBinding(_prog, _id, buf.id());
-			//glBindBufferRange(GL_UNIFORM_BUFFER, index, buf.id(), offset, size);
-			//glUniformBlockBinding(_prog, _id, buf.id());
 			void bind(GLuint index) {
 				glUniformBlockBinding(_prog, _id, index); }
 
 			GLuint id() const { return _id; }
-
-			//GLuint size() const { return property(GL_UNIFORM_BLOCK_DATA_SIZE); }
 			GLint property(GLenum prop) const {
 				GLint out; glGetActiveUniformBlockiv(_prog, _id, prop, &out);
-				return out;
-			}
+				return out; }
 		private:
 			GLuint _prog;
 			GLuint _id;
@@ -146,11 +123,19 @@ namespace glwl {
 			GLint off; glGetActiveUniformsiv(_prog, 1, &index, GL_UNIFORM_OFFSET, &off);
 			return off; }
 
+		GLint distance(const char* begin, const char* end) {
+			GLint off[2];
+			GLuint idx[2];
+			indices(idx, { begin, end });
+			offsets(2, idx, off);
+			return off[2] - off[1];
+		}
+
 		template <typename ValTy> void require(ValTy& out, const char* var_name) const {
 			return require<ValTy>(out, index(var_name)); }
 		template <typename ValTy> void require(ValTy& out, GLuint id) const;
 	
-		template <> void require(object& out, GLuint id) const {
+		template <> void require(array& out, GLuint id) const {
 			if (id == GL_INVALID_INDEX) throw _GLWL exception("Variable %d not found!", id);
 			glGetActiveUniformsiv(_prog, 1, &id, GL_UNIFORM_OFFSET, &out.offset);
 			glGetActiveUniformsiv(_prog, 1, &id, GL_UNIFORM_SIZE, &out.size);
@@ -179,11 +164,15 @@ namespace glwl {
 		class CachePolicy,
 		template <class> class BindPolicy>
 	buf::stream<BufferTy, CachePolicy, BindPolicy>& operator<<(
-		buf::stream<BufferTy, CachePolicy, BindPolicy>& os, const _uniform::var<ValTy, InfoTy>& out) {
-		os.shift(out.offset);
-		os.write(1, &out.value);
-		os.shift(-out.offset);
-		return os;
+		buf::stream<BufferTy, CachePolicy, BindPolicy>& os, const uniform::var<ValTy, InfoTy>& out) {
+		if (os.cache_capacity() >= sizeof(out.value)) {
+			os.unsafe::write(out.offset, sizeof(out.value), (char*)&out.value);
+			os.unsafe::save();
+		} else {
+			os.shift(out.offset); 
+			os.write(1, &out.value);
+			os.shift(-out.offset);
+		} return os;
 	}
 };
 

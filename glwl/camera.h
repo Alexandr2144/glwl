@@ -12,10 +12,10 @@ namespace glwl {
 			uf.require(_view, name); _view.value = viewloc; }
 		camera(const _uniform& uf, const char* name, GLuint ubobeg, const glm::mat4& viewloc) {
 			uf.require(_view, name); _view.value = viewloc; }*/
-		camera(const _uniform& uf, const char* name) {
-			uf.require<glwl::_uniform::pos>(_view, name); reset(); }
-		camera(const _uniform& uf, GLuint index) {
-			uf.require<glwl::_uniform::pos>(_view, index); reset(); }
+		camera(const uniform& uf, const char* name) {
+			uf.require<glwl::uniform::pos>(_view, name); reset(); }
+		camera(const uniform& uf, GLuint index) {
+			uf.require<glwl::uniform::pos>(_view, index); reset(); }
 
 		void reset() {
 			_pos = glm::vec3(0, 0, 0);
@@ -51,7 +51,7 @@ namespace glwl {
 		}
 		inline void _update() { _view.value = glm::lookAt(_pos, _pos + _forward, glm::vec3(0, 1, 0)); }
 
-		glwl::_uniform::var<glm::mat4, glwl::_uniform::pos> _view;
+		glwl::uniform::var<glm::mat4, glwl::uniform::pos> _view;
 		glm::mat4 _rot;
 
 		glm::vec3 _forward;

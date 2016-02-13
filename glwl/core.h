@@ -124,7 +124,7 @@ namespace glwl {
 				inline void call(FTy f, ArgsTy... args) const { f(args...); }
 
 				template <typename... MsgTypes>
-				inline void check(bool err, MsgTypes... msg) {}
+				inline void check(bool err, MsgTypes... msg) const {}
 
 				//inline void check_ptr(const void* ptr, const char* msg) {}
 				//inline void check_size(GLuint size, GLuint expect, const char* msg) {}
@@ -525,22 +525,30 @@ namespace glwl {
 				template <class BufferTy>
 				class impl {
 				public:
-					inline GLintptr tell() { return _offset; }
+					inline GLuint cache_capacity() const { return NULL; }
+					inline GLuint cache_size() const { return NULL; }
+
+					inline GLintptr tell() const { return _offset; }
 					inline void seek(GLintptr pos) { _offset = pos; }
 					inline void shift(GLintptr offset) { _offset += offset; }
 
-					inline void flush() {}
+					inline void save() const {}
+					inline void flush() const {}
 					inline void clear() { _offset = 0; }
 					inline void rdbuf(BufferTy* bufptr) { _buf = bufptr; }
-					inline BufferTy* rdbuf() const { return _buf; }
-				protected:
-					inline void read(GLuint size, char* data) {
+					inline const BufferTy* rdbuf() const { return _buf; }
+					inline BufferTy* rdbuf() { return _buf; }
+
+					inline void read(GLuint size, char* data) const {
 						_buf->read(_offset, size, (void*)data); }
 					inline void write(GLuint size, const char* data) {
 						_buf->write(_offset, size, data); }
+					inline void write(GLuint offset, GLuint size, const char* data) {
+						_buf->write(offset, size, data); }
+				protected:
 					impl(BufferTy* buf, GLuint pos) : _buf(buf), _offset(pos) {}
 					~impl() {}
-				protected:
+
 					GLintptr _offset;
 					BufferTy* _buf;
 				};
@@ -549,30 +557,30 @@ namespace glwl {
 			struct no_cached {
 				template <class BufferTy>
 				class impl : public no_cached_unsafe::impl<BufferTy> {
-				private:
-					typedef no_cached_unsafe::impl<BufferTy> base;
 				public:
+					typedef no_cached_unsafe::impl<BufferTy> unsafe;
+
 					inline void seek(GLintptr pos) {
 						if (pos < 0) throw _GLWL exception(
 							"bufstream shift: out of range [pos: %d < 0].", pos);
-						base::seek(pos);
+						unsafe::seek(pos);
 					}
 					inline void shift(GLintptr offset) {
-						GLintptr pos = base::tell() + offset;
+						GLintptr pos = unsafe::tell() + offset;
 						if (pos < 0) throw _GLWL exception(
 							"bufstream shift: out of range [pos: %d < 0].", pos);
-						base::seek(pos);
+						unsafe::seek(pos);
 					}
 
-					inline void clear() { _endbuf = 0, base::clear(); }
-				protected:
+					inline void clear() { _endbuf = 0, unsafe::clear(); }
+
 					inline void write(GLuint size, const char* data) {
 						GLuint len = _offset + size;
 						if (len > _buf->capacity()) _buf->resize(len);
-						base::write(size, data);
+						unsafe::write(size, data);
 					}
-
-					impl(BufferTy* buf, GLuint pos) : base(buf, pos) {}
+				protected:
+					impl(BufferTy* buf, GLuint pos) : unsafe(buf, pos) {}
 					~impl() {}
 				};
 			};
@@ -582,32 +590,39 @@ namespace glwl {
 				template <class BufferTy>
 				class impl {
 				public:
+					inline GLuint cache_capacity() const { return CacheSize; }
+					inline GLuint cache_size() const { return _last - _base; }
+
 					inline GLintptr tell() { return _offset + (_last - _base); }
 
 					inline void seek_near(GLintptr pos) { _last = _base + pos; }
-					inline void seek_far(GLintptr pos) { _flush(); _offset = pos; }
+					inline void seek_far(GLintptr pos) { save(); _offset = pos; }
 
 					inline void shift_near(GLintptr offset) { _last += offset; }
-					inline void shift_far(GLintptr offset) { _flush(); _offset += offset; }
+					inline void shift_far(GLintptr offset) { save(); _offset += offset; }
 
 					inline BufferTy* rdbuf() const { return _buf; }
 					inline void rdbuf(BufferTy* bufptr) { _buf = bufptr; }
 					inline void clear() { _offset = 0, _last = _base; }
-					inline void flush() {
-						GLuint size = _last - _base;
-						if (!size) return;
-						_buf->write(_offset, size, _base);
-						_last = _base, _offset += size;
+					inline void flush() { save(); _offset += CacheSize; }
+					inline void save() {
+						_buf->write(_offset, CacheSize, _base);
+						_last = _base;
 					}
-				protected:
+
 					inline void read(GLuint size, char* data) {
 						_buf->read(_offset, size, (void*)data); }
 					inline void write(GLuint size, const char* data) {
 						_STD memcpy(_last, data, size);
 						_last += size; }
-
+					inline void write(GLuint offset, GLuint size, const char* data) {
+						_STD memcpy(_last + offset, data, size); }
+				protected:
 					impl(BufferTy* buf, GLuint pos) 
-						: _buf(buf), _last(_base), _offset(pos) {}
+						: _buf(buf), _last(_base), _offset(pos) {
+						static_assert(CacheSize != NULL, "Cache size must be not eq null. "\
+							"Use \"no_cached\" for disabe cache.");
+					}
 					~impl() {}
 
 					GLintptr _offset;
@@ -615,12 +630,6 @@ namespace glwl {
 
 					char _base[CacheSize];
 					char* _last;
-				private:
-					inline void _flush() {
-						GLuint size = _last - _base;
-						_buf->write(_offset, size, _base);
-						_last = _base;
-					}
 				};
 			};
 
@@ -628,58 +637,63 @@ namespace glwl {
 			struct cached {
 				template <class BufferTy>
 				class impl :
-					private cached_unsafe<CacheSize>::impl<BufferTy> {
-				private:
-					typedef typename cached_unsafe<CacheSize>::impl<BufferTy> base;
+					public cached_unsafe<CacheSize>::impl<BufferTy> {
 				public:
-					inline GLuint tell() { return base::tell(); }
+					typedef typename cached_unsafe<CacheSize>::impl<BufferTy> unsafe;
+
+					inline GLuint tell() { return unsafe::tell(); }
 					inline void seek(GLintptr pos) {
 						GLintptr delta = pos - _offset;
-						if (delta >= 0) base::seek_near(delta);
-						else base::seek_far(pos);
+						if (delta >= 0) unsafe::seek_near(delta);
+						else unsafe::seek_far(pos);
 					}
 					inline void shift(GLintptr offset) {
 						char* pos = _last + offset;
 						if (pos < _base || pos > _end)
-							base::shift_far(offset);
+							unsafe::shift_far(offset);
 						else _last = pos;
 					}
+					inline void save() { _save(_last - _base); }
 					inline void flush() {
 						GLuint size = _last - _base;
-						if (!size) return;
-						GLuint len = _offset + size;
-						if (len > _buf->capacity()) _buf->resize(len);
-						_buf->write(_offset, size, _base);
-						_last = _base, _offset += size;
+						_save(size); _offset += size;
 					}
 
-					inline BufferTy* rdbuf() const { return base::rdbuf(); }
-					inline void rdbuf(BufferTy* bufptr) { flush(); base::rdbuf(bufptr); }
+					inline BufferTy* rdbuf() const { return unsafe::rdbuf(); }
+					inline void rdbuf(BufferTy* bufptr) { flush(); unsafe::rdbuf(bufptr); }
 				protected:
 					inline void read(GLuint size, char* data) {
 						_buf->read(_offset, size, (void*)data); }
 					inline void write(GLuint size, const char* data) {
 						if (size > CacheSize) {
 							flush();
-							_write(size, data);
+							_bufwrite(size, data);
 							return;
 						}
 						GLuint capacity = _end - _last;
 						GLint tail = size - capacity;
-						if (tail < 0) { base::write(size, data); return; }
-						base::write(capacity, data);
+						if (tail < 0) { unsafe::write(size, data); return; }
+						unsafe::write(capacity, data);
 						data += capacity;
-						_write(CacheSize, _base);
-						base::write(tail, data);
+						_bufwrite(CacheSize, _base);
+						_last = _base;
+						unsafe::write(tail, data);
 					}
 
-					impl(BufferTy* buf, GLuint pos) : base(buf, pos), _end(_base + CacheSize) {}
+					impl(BufferTy* buf, GLuint pos) : unsafe(buf, pos), _end(_base + CacheSize) {}
 					~impl() {}
 				private:
-					inline void _write(GLuint size, const char* data) {
+					inline void _save(GLuint size) {
+						if (!size) return;
 						GLuint len = _offset + size;
 						if (len > _buf->capacity()) _buf->resize(len);
-						_buf->write(_offset, size, data), _offset += size;
+						_buf->write(_offset, size, _base);
+						_last = _base;
+					}
+					inline void _bufwrite(GLuint size, const char* data) {
+						GLuint len = _offset + size;
+						if (len > _buf->capacity()) _buf->resize(len);
+						_buf->write(_offset, size, data), _offset = len;
 					}
 					char* _end;
 				};
@@ -715,6 +729,8 @@ namespace glwl {
 			typedef BindPolicy<CachePolicyImpl<BufferTy>> cache;
 			typedef basic_stream_impl mytype;
 		public:
+			typedef typename CachePolicyImpl<BufferTy>::unsafe unsafe;
+
 			~basic_stream_impl() { flush(); }
 
 			basic_stream_impl(BufferTy* buf, GLuint pos = NULL) : cache(buf, pos) {}
@@ -766,6 +782,8 @@ namespace glwl {
 		private:
 			typedef basic_stream_impl<BufferTy, CachePolicy::impl, BindPolicy> base;
 		public:
+			//typedef typename base::unsafe unsafe;
+
 			stream(BufferTy* buf, GLuint pos = NULL) : base(buf, pos) {}
 			GLWL_CTOR_LV_DELETE(stream)
 
@@ -791,8 +809,8 @@ namespace glwl {
 		};
 
 		template <
+			class ElemTy,
 			class BufferTy, 
-			class ElemTy, 
 			class CachePolicy, 
 			template <class> class BindPolicy>
 		class elem_stream : public basic_stream_impl<BufferTy, CachePolicy::impl, BindPolicy> {

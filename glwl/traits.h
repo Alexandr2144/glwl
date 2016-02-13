@@ -46,9 +46,11 @@ namespace glwl {
 	template <typename ValueTy>
 	struct format {
 		GLboolean norm;
-		format(GLboolean normalize = GL_FALSE) : norm(normalize) {}
-		static const GLboolean normalized = GL_TRUE;
-		static const GLboolean default = GL_FALSE;
+		format(GLboolean normalize = default) : norm(normalize) {}
+		enum {
+			normalized = GL_TRUE,
+			default = GL_FALSE
+		};
 	};
 
 	//Prototype

@@ -42,8 +42,8 @@ namespace glwl {
 			setbuf(GLuint slot) : proxy(slot, 0) {}
 			setbuf& operator[](GLuint offset) { _offset = offset; return *this; }
 			//setbuf& operator<<(offset&& off) { _offset = off.val; return *this; }
-			template <class Buf, class Elem, class Cache, template <class> class Bind>
-			void operator<<(const _GLWL buf::elem_stream<Buf, Elem, Cache, Bind>& vbuffer) {
+			template <class Elem, class Buf, class Cache, template <class> class Bind>
+			void operator<<(const _GLWL buf::elem_stream<Elem, Buf, Cache, Bind>& vbuffer) {
 				glBindVertexBuffer(_buf, vbuffer.rdbuf()->id(), _offset, sizeof(Elem));
 			}
 		};
@@ -106,14 +106,14 @@ namespace glwl {
 
 	class location {
 	public:
-		location(const _uniform& uf, const char* name, const glm::mat4& mat) {
-			uf.require<glwl::_uniform::pos>(_mat, name); _mat.value = mat; }
-		location(const _uniform& uf, GLuint index, const glm::mat4& mat) {
-			uf.require<glwl::_uniform::pos>(_mat, index); _mat.value = mat; }
-		location(const _uniform& uf, const char* name) {
-			uf.require<glwl::_uniform::pos>(_mat, name); }
-		location(const _uniform& uf, GLuint index) {
-			uf.require<glwl::_uniform::pos>(_mat, index); }
+		location(const uniform& uf, const char* name, const glm::mat4& mat) {
+			uf.require<glwl::uniform::pos>(_mat, name); _mat.value = mat; }
+		location(const uniform& uf, GLuint index, const glm::mat4& mat) {
+			uf.require<glwl::uniform::pos>(_mat, index); _mat.value = mat; }
+		location(const uniform& uf, const char* name) {
+			uf.require<glwl::uniform::pos>(_mat, name); }
+		location(const uniform& uf, GLuint index) {
+			uf.require<glwl::uniform::pos>(_mat, index); }
 		location(const glm::mat4& mat) {
 			_mat.value = mat; }
 		location() {}
@@ -121,6 +121,7 @@ namespace glwl {
 		location& operator=(const glm::mat4& mat) { _mat.value = mat; return *this; }
 
 		const glm::mat4& getm() const { return _mat.value; }
+		GLuint offset() const { return _mat.offset; }
 
 		void move(const glm::vec3& position) { _mat.value = glm::translate(_mat.value, position); }
 		void spawn(const glm::vec3& position) { _mat.value[3] = glm::vec4(position, _mat.value[3].w); }
@@ -141,7 +142,7 @@ namespace glwl {
 		friend buf::stream<BufferTy, CachePolicy, BindPolicy>& operator<<(
 			buf::stream<BufferTy, CachePolicy, BindPolicy>& os, const location& out);
 	private:
-		glwl::_uniform::var<glm::mat4, glwl::_uniform::pos> _mat;
+		glwl::uniform::var<glm::mat4, glwl::uniform::pos> _mat;
 		GLuint _offset;
 	};
 
@@ -149,8 +150,7 @@ namespace glwl {
 		template <class> class BindPolicy>
 	buf::stream<BufferTy, CachePolicy, BindPolicy>& operator<<(
 		buf::stream<BufferTy, CachePolicy, BindPolicy>& os, const location& out) {
-		return os << out._mat;
-	}
+		return os << out._mat; }
 
 
 	template <typename ValTy, typename IdxTy = GLuint>

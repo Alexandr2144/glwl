@@ -1,4 +1,4 @@
-#include "basic.h"
+#include "core.h"
 
 namespace glwl { class window; }
 glwl::window& glwlGetWindow();

@@ -4,7 +4,7 @@
 #include <GL\freeglut.h>
 #include <glm\glm.hpp>
 
-#include "core.h"
+#include "traits.h"
 
 namespace glwl {
 	//!!! - To do delete

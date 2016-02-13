@@ -76,7 +76,6 @@ namespace glwl {
 					specular(_specular), emission(_emission), 
 					shininess(_shininess), roughness(_roughness) {}
 		} prop;
-
 		struct offsets {
 			GLuint ambient;
 			GLuint diffuse;
@@ -84,34 +83,53 @@ namespace glwl {
 			GLuint emission;
 			GLuint shininess;
 			GLuint roughness;
-
-			void shift(GLuint offset) {
-				ambient += offset, diffuse += offset,
-				specular += offset, emission += offset,
-				shininess += offset, roughness += offset;
-			}
-			static offsets default(_uniform ufrm) {
-				offsets out;
-				GLuint indices[6];
-				ufrm.indices(indices, {
-					"material.ambient", "material.diffuse",
-					"material.specular", "material.emission",
-					"material.shininess", "material.roughness" });
-				ufrm.offsets(6, indices, (GLint*)&out);
-				return out;
-			}
 		} offset;
 
-		material(properties&& p, offsets&& off, _GLWL texture&& tex) 
+		material(_GLWL texture&& tex, properties&& p, offsets&& off)
 			: prop(p), offset(off), texture(tex) {}
-
-		void load(buf::ubo<>& ubuf, offsets off) {
-			ubuf.write(off.ambient, prop.ambient);
-			ubuf.write(off.diffuse, prop.diffuse);
-			ubuf.write(off.specular, prop.specular);
-			ubuf.write(off.emission, prop.emission);
-			ubuf.write(off.shininess, prop.shininess);
-			ubuf.write(off.roughness, prop.roughness);
+		material(_GLWL texture&& tex, properties&& p, uniform ufrm)
+			: prop(p), texture(tex)  {
+			GLuint indices[6];
+			ufrm.indices(indices, {
+				"material.ambient", "material.diffuse",
+				"material.specular", "material.emission",
+				"material.shininess", "material.roughness" });
+			ufrm.offsets(6, indices, (GLint*)&offset);
+		}
+		material(_GLWL texture&& tex, properties&& p, uniform ufrm, const char* name)
+			: prop(p), texture(tex) {
+			GLuint indices[6];
+			char sz1[128]; strcpy_s(sz1, 128, name); strcat_s(sz1, ".ambient");
+			char sz2[128]; strcpy_s(sz2, 128, name); strcat_s(sz2, ".diffuse");
+			char sz3[128]; strcpy_s(sz3, 128, name); strcat_s(sz3, ".specular");
+			char sz4[128]; strcpy_s(sz4, 128, name); strcat_s(sz4, ".emission");
+			char sz5[128]; strcpy_s(sz5, 128, name); strcat_s(sz5, ".shininess");
+			char sz6[128]; strcpy_s(sz6, 128, name); strcat_s(sz6, ".roughness");
+			ufrm.indices(indices, { sz1, sz2, sz3, sz4, sz5, sz6 });
+			ufrm.offsets(6, indices, (GLint*)&offset);
 		}
 	};
+
+	template <class BufferTy, class CachePolicy,
+		template <class> class BindPolicy>
+	buf::stream<BufferTy, CachePolicy, BindPolicy>& operator<<(
+		buf::stream<BufferTy, CachePolicy, BindPolicy>& os, const material& out) {
+		if (os.cache_capacity() >= sizeof(out.prop)) {
+			os.unsafe::write(out.offset.ambient, sizeof(out.prop.ambient), (char*)&out.prop.ambient);
+			os.unsafe::write(out.offset.diffuse, sizeof(out.prop.diffuse), (char*)&out.prop.diffuse);
+			os.unsafe::write(out.offset.specular, sizeof(out.prop.specular), (char*)&out.prop.specular);
+			os.unsafe::write(out.offset.emission, sizeof(out.prop.emission), (char*)&out.prop.emission);
+			os.unsafe::write(out.offset.shininess, sizeof(out.prop.shininess), (char*)&out.prop.shininess);
+			os.unsafe::write(out.offset.roughness, sizeof(out.prop.roughness), (char*)&out.prop.roughness);
+			os.unsafe::save();
+		} else {
+			GLuint pos = os.tell();
+			os.shift(out.offset.ambient); os.write(1, &out.prop.ambient);
+			os.seek(pos); os.shift(out.offset.diffuse); os.write(1, (char*)&out.prop.diffuse);
+			os.seek(pos); os.shift(out.offset.specular); os.write(1, (char*)&out.prop.specular);
+			os.seek(pos); os.shift(out.offset.emission); os.write(1, (char*)&out.prop.emission);
+			os.seek(pos); os.shift(out.offset.shininess); os.write(1, (char*)&out.prop.shininess);
+			os.seek(pos); os.shift(out.offset.roughness); os.write(1, (char*)&out.prop.roughness);
+		} return os;
+	}
 }
