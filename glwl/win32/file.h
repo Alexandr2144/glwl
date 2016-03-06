@@ -25,9 +25,6 @@ namespace glwl {
 			archive = FILE_ATTRIBUTE_ARCHIVE
 		};
 
-		inline bool good() { return !_badfl; }
-		inline bool bad() { return _badfl; }
-
 		file(LPWSTR name, acess desired_acess = read, openmode mode = if_exist,
 			share share_mode = no_share, file_attrib attrib = normal) : _badfl(false),
 			_file(INVALID_HANDLE_VALUE), _map(nullptr) {
@@ -43,6 +40,15 @@ namespace glwl {
 			_data = MapViewOfFile(_map, FILE_MAP_READ, 0, 0, _size);
 			if (_data == nullptr) { _badfl = true; this->~file(); return; }
 		}
+
+		inline bool good() const { return !_badfl; }
+		inline bool bad() const { return _badfl; }
+
+		inline char* data() const { return reinterpret_cast<char*>(_data); }
+
+		GLuint size() const { return _size; }
+
+		HANDLE handle() const { return _file; }
 	private:
 		HANDLE _file;
 		HANDLE _map;

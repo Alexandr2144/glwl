@@ -1,7 +1,6 @@
 #ifndef __GLWL_CORE_H
 #define __GLWL_CORE_H
 
-#include <exception>
 #include <cstdio>
 
 #include <utility>
@@ -28,11 +27,13 @@
 	_STD memset(&src, NULL, sizeof(myclass)); }
 #define GLWL_ASSIG_RV_STD(myclass) \
 	myclass& operator=(myclass&& src) { \
+	if (this == &src) return *this; \
 	this->~myclass(); \
 	new(this) myclass(_STD move(src)); \
 	return *this; }
 #define GLWL_ASSIG_LV_STD(myclass) \
 	myclass& operator=(const myclass& src) {\
+	if (this == &src) return *this; \
 	this->~myclass(); \
 	new(this) myclass(src); \
 	return *this; }
@@ -44,62 +45,91 @@
 	myclass& operator=(const myclass& src) = delete;
 
 
-#define GLWL_CASE_MACRO(def) case def: return #def;
-
 namespace glwl {
 	namespace macro {
+#define GLWL_CASE_MACRO(def) case def: return #def
 		const char* str(GLenum val) {
 			switch (val) {
-				GLWL_CASE_MACRO(GL_NO_ERROR)
-					GLWL_CASE_MACRO(GL_INVALID_ENUM)
-					GLWL_CASE_MACRO(GL_INVALID_VALUE)
-					GLWL_CASE_MACRO(GL_INVALID_OPERATION)
-					GLWL_CASE_MACRO(GL_STACK_OVERFLOW)
-					GLWL_CASE_MACRO(GL_STACK_UNDERFLOW)
-					GLWL_CASE_MACRO(GL_OUT_OF_MEMORY)
-					GLWL_CASE_MACRO(GL_INVALID_FRAMEBUFFER_OPERATION)
+				GLWL_CASE_MACRO(GL_NO_ERROR);
+				GLWL_CASE_MACRO(GL_INVALID_ENUM);
+				GLWL_CASE_MACRO(GL_INVALID_VALUE);
+				GLWL_CASE_MACRO(GL_INVALID_OPERATION);
+				GLWL_CASE_MACRO(GL_STACK_OVERFLOW);
+				GLWL_CASE_MACRO(GL_STACK_UNDERFLOW);
+				GLWL_CASE_MACRO(GL_OUT_OF_MEMORY);
+				GLWL_CASE_MACRO(GL_INVALID_FRAMEBUFFER_OPERATION);
 
-					GLWL_CASE_MACRO(GL_STREAM_DRAW)
-					GLWL_CASE_MACRO(GL_STREAM_READ)
-					GLWL_CASE_MACRO(GL_STREAM_COPY)
-					GLWL_CASE_MACRO(GL_STATIC_DRAW)
-					GLWL_CASE_MACRO(GL_STATIC_READ)
-					GLWL_CASE_MACRO(GL_STATIC_COPY)
-					GLWL_CASE_MACRO(GL_DYNAMIC_DRAW)
-					GLWL_CASE_MACRO(GL_DYNAMIC_READ)
-					GLWL_CASE_MACRO(GL_DYNAMIC_COPY)
+				GLWL_CASE_MACRO(GL_STREAM_DRAW);
+				GLWL_CASE_MACRO(GL_STREAM_READ);
+				GLWL_CASE_MACRO(GL_STREAM_COPY);
+				GLWL_CASE_MACRO(GL_STATIC_DRAW);
+				GLWL_CASE_MACRO(GL_STATIC_READ);
+				GLWL_CASE_MACRO(GL_STATIC_COPY);
+				GLWL_CASE_MACRO(GL_DYNAMIC_DRAW);
+				GLWL_CASE_MACRO(GL_DYNAMIC_READ);
+				GLWL_CASE_MACRO(GL_DYNAMIC_COPY);
 
-					GLWL_CASE_MACRO(GL_ARRAY_BUFFER)
-					GLWL_CASE_MACRO(GL_ELEMENT_ARRAY_BUFFER)
-					GLWL_CASE_MACRO(GL_UNIFORM_BUFFER)
+				GLWL_CASE_MACRO(GL_ARRAY_BUFFER);
+				GLWL_CASE_MACRO(GL_ELEMENT_ARRAY_BUFFER);
+				GLWL_CASE_MACRO(GL_UNIFORM_BUFFER);
 
-					/*GLWL_CASE_MACRO(GL_STATIC_DRAW)
-					GLWL_CASE_MACRO(GL_STATIC_READ)
-					GLWL_CASE_MACRO(GL_STATIC_COPY)
-					GLWL_CASE_MACRO(GL_DYNAMIC_DRAW)
-					GLWL_CASE_MACRO(GL_DYNAMIC_READ)
-					GLWL_CASE_MACRO(GL_DYNAMIC_COPY)*/
+				GLWL_CASE_MACRO(GL_TEXTURE_2D);
+				GLWL_CASE_MACRO(GL_TEXTURE_3D);
+				GLWL_CASE_MACRO(GL_LINEAR);
+				GLWL_CASE_MACRO(GL_LINEAR_MIPMAP_LINEAR);
+				//GLWL_CASE_MACRO(GL_DYNAMIC_COPY);
+
+				GLWL_CASE_MACRO(GL_COMPRESSED_RGBA_S3TC_DXT1_EXT);
+				GLWL_CASE_MACRO(GL_COMPRESSED_RGBA_S3TC_DXT3_EXT);
+				GLWL_CASE_MACRO(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT);
 
 			default: return "<unknown>";
 			}
 		}
+		const char* str(const void* val) { return str(reinterpret_cast<GLenum>(val)); }
+#undef GLWL_CASE_MACRO
 	};
 
 #undef GLWL_CASE_MACRO
-
-	class exception : public _XSTD exception {
+	class exception : public _STD exception {
 	public:
 		exception() {}
-		template <typename... ArgsTy>
-		exception(const char* format, ArgsTy... args) : _XSTD exception(_msg, 0) {
-			sprintf_s(_msg, format, args...);
+		exception(const char* msg) : _msg(_msgbuf) {
+			::strncpy_s(_msgbuf, msg, 512);
 		}
+		exception(const char* msg, int) : _msg(msg) {}
+		template <typename... ArgsTy>
+		exception(const char* format, ArgsTy... args) : _msg(_msgbuf) {
+			::sprintf_s(_msgbuf, format, args...);
+		}
+
+		virtual const char* what() const { return _msg; }
 	private:
-		char _msg[512];
+		char _msgbuf[512];
+		const char* _msg;
 	};
 
-	template <class _Ty>
-	using list = _STD initializer_list<_Ty>;
+
+#include "auto\exception.h"
+	namespace error {
+		class none {
+		public:
+			enum code { sucess };
+
+			GLenum glerr() { return glGetError(); }
+			code error() { return sucess; }
+			code exception(code mask) { return sucess; }
+			code exception() { return sucess; }
+		protected:
+			template <typename FTy, typename... ArgsTy>
+			inline void call(FTy f, ArgsTy... args) const { f(args...); }
+			template <typename... MsgTypes>
+			inline void check(bool err, MsgTypes... msg) const {}
+
+			none() {}
+			~none() {}
+		};
+	};
 
 	namespace buf {
 		enum type {
@@ -111,259 +141,95 @@ namespace glwl {
 			index = GL_ELEMENT_ARRAY_BUFFER,
 			uniform = GL_UNIFORM_BUFFER
 		};
-		namespace a {
-			struct no_check {
-			public:
-				enum code { sucess };
 
-				template <typename FTy, typename... ArgsTy>
-				inline void construct(FTy f, ArgsTy... args) { f(args...); }
-				template <typename FTy, typename... ArgsTy>
-				inline void destruct(FTy f, ArgsTy... args) { f(args...); }
-				template <typename FTy, typename... ArgsTy>
-				inline void call(FTy f, ArgsTy... args) const { f(args...); }
-
-				template <typename... MsgTypes>
-				inline void check(bool err, MsgTypes... msg) const {}
-
-				//inline void check_ptr(const void* ptr, const char* msg) {}
-				//inline void check_size(GLuint size, GLuint expect, const char* msg) {}
-				//inline void check_type(GLenum type, GLenum expect, const char* msg) {}
-
-				GLenum glerr() { return glGetError(); }
-				code error() { return sucess; }
-				code exception(code mask) { return sucess; }
-				code exception() { return sucess; }
-			protected:
-				no_check() {}
-				~no_check() {}
-			private:
-			};
-
-
-			struct std_check {
-			public:
-				enum code {
-					sucess = 0x0000,
-					fail = 0xffff,
-
-					bad_glBindBuffer = 0x0001,
-					bad_glBufferData = 0x0002,
-					bad_glUnmapBuffer = 0x0004,
-					bad_glBufferStorage = 0x0008,
-					bad_glBufferSubData = 0x0010,
-					bad_glBindBufferBase = 0x0020,
-					bad_glBindBufferRange = 0x0040,
-					bad_glCopyBufferSubData = 0x0080,
-
-					none = 0x00000000,
-					all = 0xffffffff
-				};
-
-				template <typename FTy, typename... ArgsTy>
-				inline void construct(FTy f, ArgsTy... args) { f(args...); }
-				template <typename FTy, typename... ArgsTy>
-				inline void destruct(FTy f, ArgsTy... args) { f(args...); }
-				
-#define GLWL_BUF_THROW(proc, format) \
-	case bad_##proc: throw _GLWL exception(#proc##" function failure. Arguments: {\n"##format##"} \nError message : %s"
-#define GLWL_BUF_EXCEPT_CALL_BEG \
-	_glerr = glGetError(); \
-				if (_glerr) {\
-				setf(reinterpret_cast<const void*>(f)); \
-				if (!(_mask & _error)) return; \
-				switch (_error) {
-#define GLWL_BUF_EXCEPT_CALL_END }}
-
-				template <typename FTy, typename A1Ty>
-				inline void call(FTy f, A1Ty a1) const {
-					f(a1);
-					GLWL_BUF_EXCEPT_CALL_BEG
-					GLWL_BUF_THROW(glUnmapBuffer, "\tType: %s\n"),
-						macro::str(a1), macro::str(_glerr));
-					GLWL_BUF_EXCEPT_CALL_END
-				}
-				template <typename FTy, typename A1Ty, typename A2Ty>
-				inline void call(FTy f, A1Ty a1, A2Ty a2) const {
-					f(a1, a2);
-					GLWL_BUF_EXCEPT_CALL_BEG
-					GLWL_BUF_THROW(glBindBuffer, "\tType: %s,\n\tID: %d\n"),
-						macro::str(a1), a2, macro::str(_glerr));
-					GLWL_BUF_EXCEPT_CALL_END
-				}
-				template <typename FTy, typename A1Ty, typename A2Ty, typename A3Ty>
-				inline void call(FTy f, A1Ty a1, A2Ty a2, A3Ty a3) const {
-					f(a1, a2, a3);
-					GLWL_BUF_EXCEPT_CALL_BEG
-					GLWL_BUF_THROW(glBindBufferBase, "\tType: %s,\n\tBindIdx: %d,\n\tID: %d\n"),
-						macro::str(a1), a2, a3, macro::str(_glerr));
-					GLWL_BUF_EXCEPT_CALL_END
-				}
-				template <typename FTy, typename A1Ty, typename A2Ty, typename A3Ty, typename A4Ty>
-				inline void call(FTy f, A1Ty a1, A2Ty a2, A3Ty a3, A4Ty a4) const {
-					f(a1, a2, a3, a4);
-					GLWL_BUF_EXCEPT_CALL_BEG
-					GLWL_BUF_THROW(glBufferData, "\tType: %s,\n\tSize: %d,\n\tData: %x,\n\tUsage: %s\n"),
-						macro::str(a1), a2, a3, macro::str((GLenum)a4), macro::str(_glerr));
-					GLWL_BUF_THROW(glBufferStorage, "\tType: %s,\n\tSize: %d,\n\tData: %x,\n\tFlags: %x\n"),
-						macro::str(a1), a2, a3, a4, macro::str(_glerr));
-					GLWL_BUF_THROW(glBufferSubData, "\tType: %s,\n\tOffset: %d,\n\tSize: %d,\n\tData: %x\n"),
-						macro::str(a1), a2, a3, a4, macro::str(_glerr));
-					GLWL_BUF_EXCEPT_CALL_END
-				}
-
-				template <typename FTy, typename A1Ty, typename A2Ty, typename A3Ty, typename A4Ty, typename A5Ty>
-				inline void call(FTy f, A1Ty a1, A2Ty a2, A3Ty a3, A4Ty a4, A5Ty a5) const {
-					f(a1, a2, a3, a4, a5);
-					GLWL_BUF_EXCEPT_CALL_BEG
-					GLWL_BUF_THROW(glBindBufferRange, "\tType: %s,\n\tBindIdx: %d,\n\tID: %x,\n\tOffset: %d,\n\tSize: %d\n"),
-						macro::str(a1), a2, a3, a4, a5, macro::str(_glerr));
-					GLWL_BUF_THROW(glCopyBufferSubData, "\tTarget1: %s,\n\tTarget2: %s,\n\tOffset1: %d,\n\tOffset2: %d,\n\tSize: %d\n"),
-						macro::str(a1), macro::str(a2), a3, a4, a5, macro::str(_glerr));
-					GLWL_BUF_EXCEPT_CALL_END
-				}
-
-#undef GLWL_BUF_THROW
-#undef GLWL_BUF_EXCEPT_CALL_BEG
-#undef GLWL_BUF_EXCEPT_CALL_END
-
-				template <typename... MsgTypes>
-				inline void check(bool err, MsgTypes... msg) const {
-					if (err) throw _GLWL exception(msg...); }
-
-				/*inline void check_ptr(const void* ptr, const char* msg) const {
-					if (ptr) return;
-					throw _GLWL exception("Invalid pointer: %s", msg);
-				}
-				inline void check_size(GLuint size, GLuint expect, const char* msg) const {
-					if (size == expect) return;
-					throw _GLWL exception("Invalid size: %s", msg);
-				}
-				inline void check_type(GLenum type, GLenum expect, const char* msg) const {
-					if (type == expect) return;
-					throw _GLWL exception("Types mismath: %s", msg);
-				}*/
-
-				GLenum glerr() const { return _glerr; }
-				code error() const { return _error; }
-				code exception() const { return _mask; }
-				code exception(code mask) const { code old = _mask; _mask = mask; return old; }
-			protected:
-				std_check() : _mask(all), _error(sucess), _glerr(GL_NO_ERROR) {}
-				~std_check() {}
-			private:
-				inline void setf(const void* f) const {
-					if (f == glBindBuffer)			_error = bad_glBindBuffer;
-					else if (f == glBufferData)			_error = bad_glBufferData;
-					else if (f == glUnmapBuffer)		_error = bad_glUnmapBuffer;
-					else if (f == glBufferStorage)		_error = bad_glBufferStorage;
-					else if (f == glBufferSubData)		_error = bad_glBufferSubData;
-					else if (f == glBindBufferBase)		_error = bad_glBindBufferBase;
-					else if (f == glBindBufferRange)	_error = bad_glBindBufferRange;
-					else if (f == glCopyBufferSubData)	_error = bad_glCopyBufferSubData;
-					else _error = fail;
-				}
-
-				mutable GLenum _glerr;
-				mutable code _mask;
-				mutable code _error;
-			};
+		template <class ExceptionPolicy>
+		class immutable : public ExceptionPolicy {
+		public:
+			inline void init(GLenum type, GLbitfield flags, GLuint size, const void* data) {
+				ExceptionPolicy::call(glBufferStorage, type, size, data, flags); }
+		protected:
+			immutable() {}
+			~immutable() {}
+		};
+		template <class ExceptionPolicy>
+		class dynamic : public ExceptionPolicy {
+		public:
+			inline void init(GLenum type, GLenum usage, GLuint size, const void* data) {
+				ExceptionPolicy::call(glBufferData, type, size, data, usage); }
+		protected:
+			dynamic() {}
+			~dynamic() {}
 		};
 
-		namespace b {
-			template <class ExceptionPolicy>
-			class immutable : public ExceptionPolicy {
-			public:
-				inline void init(GLenum type, GLbitfield flags, GLuint size, const void* data) {
-					ExceptionPolicy::call(glBufferStorage, type, size, data, flags);
-				}
-			protected:
-				immutable() {}
-				~immutable() {}
-			};
-			template <class ExceptionPolicy>
-			class dynamic : public ExceptionPolicy {
-			public:
-				inline void init(GLenum type, GLenum usage, GLuint size, const void* data) {
-					ExceptionPolicy::call(glBufferData, type, size, data, usage);
-				}
-			protected:
-				dynamic() {}
-				~dynamic() {}
-			};
+		template <class ExceptionPolicy, template<class> class MutablePolicy>
+		struct map_none : MutablePolicy<ExceptionPolicy> {
+		protected:
+			typedef void mapptr;
+			map_none() {}
+			~map_none() {}
 		};
 
-		namespace c {
-			template <class ExceptionPolicy, template<class> class MutablePolicy>
-			struct map_none : MutablePolicy<ExceptionPolicy> {
-			protected:
-				typedef void mapptr;
-				map_none() {}
-				~map_none() {}
-			};
+		template <class ExceptionPolicy, template<class> class MutablePolicy>
+		struct map_fast : MutablePolicy<ExceptionPolicy> {
+		private:
+			typedef ExceptionPolicy checker;
+		public:
+			typedef void* mapptr;
 
-			template <class ExceptionPolicy, template<class> class MutablePolicy>
-			struct map_fast : MutablePolicy<ExceptionPolicy> {
-			private:
-				typedef ExceptionPolicy checker;
+			inline void unmap(GLenum type) { glUnmapBuffer(type); }
+			inline mapptr map(GLenum type, GLenum acess, GLsizeiptr length, GLintptr offset) {
+				void* ptr = glMapBufferRange(type, offset, length, acess);
+				checker::check(ptr == nullptr, "can't map this buffer");
+				return ptr;
+			}
+			inline mapptr map(GLenum type, GLenum acess) {
+				void* ptr = glMapBuffer(type, acess);
+				checker::check(ptr == nullptr, "can't map this buffer");
+				return ptr;
+			}
+		protected:
+			map_fast() {}
+			~map_fast() {}
+		};
+
+		template <class ExceptionPolicy, template<class> class MutablePolicy>
+		struct map_safe : MutablePolicy<ExceptionPolicy> {
+		private:
+			typedef ExceptionPolicy checker;
+		public:
+			typedef class mapptr {
 			public:
-				typedef void* mapptr;
-
-				inline void unmap(GLenum type) { glUnmapBuffer(type); }
-				inline mapptr map(GLenum type, GLenum acess, GLsizeiptr length, GLintptr offset) {
-					void* ptr = glMapBufferRange(type, offset, length, acess);
-					checker::check(ptr == nullptr, "can't map this buffer");
-					return ptr;
-				}
-				inline mapptr map(GLenum type, GLenum acess) {
-					void* ptr = glMapBuffer(type, acess);
-					checker::check(ptr == nullptr, "can't map this buffer");
-					return ptr;
-				}
-			protected:
-				map_fast() {}
-				~map_fast() {}
+				mapptr(void* ptr, GLenum type, map_safe& ref)
+					: _ptr(ptr), _type(type), _ref(ref) {}
+				~mapptr() { _ref.unmap(_type); }
+				void* operator*() { return _ptr; }
+				void unmap() { _ref.unmap(_type); }
+			private:
+				void* _ptr;
+				GLenum _type;
+				map_safe& _ref;
 			};
 
-			template <class ExceptionPolicy, template<class> class MutablePolicy>
-			struct map_safe : MutablePolicy<ExceptionPolicy> {
-			private:
-				typedef ExceptionPolicy checker;
-			public:
-				typedef class mapptr {
-				public:
-					mapptr(void* ptr, GLenum type, map_safe& ref)
-						: _ptr(ptr), _type(type), _ref(ref) {}
-					~mapptr() { _ref.unmap(_type); }
-					void* operator*() { return _ptr; }
-					void unmap() { _ref.unmap(_type); }
-				private:
-					void* _ptr;
-					GLenum _type;
-					map_safe& _ref;
-				};
+			inline void unmap(GLenum type) { if (_mapped) checker::call(glUnmapBuffer, type); _mapped = false; }
+			inline mapptr map(GLenum type, GLenum acess, GLsizeiptr length, GLintptr offset) {
+				_mapped = true;
+				void* ptr = glMapBufferRange(type, offset, length, acess);
+				checker::check(ptr == nullptr, "can't map this buffer");
+				return mapptr(ptr, type, *this);
+			}
+			inline mapptr map(GLenum type, GLenum acess) {
+				_mapped = true;
+				void* ptr = glMapBuffer(type, acess);
+				checker::check(ptr == nullptr, "can't map this buffer");
+				return mapptr(ptr, type, *this);
+			}
 
-				inline void unmap(GLenum type) { if (_mapped) checker::call(glUnmapBuffer, type); _mapped = false; }
-				inline mapptr map(GLenum type, GLenum acess, GLsizeiptr length, GLintptr offset) {
-					_mapped = true;
-					void* ptr = glMapBufferRange(type, offset, length, acess);
-					checker::check(ptr == nullptr, "can't map this buffer");
-					return mapptr(ptr, type, *this);
-				}
-				inline mapptr map(GLenum type, GLenum acess) {
-					_mapped = true;
-					void* ptr = glMapBuffer(type, acess);
-					checker::check(ptr == nullptr, "can't map this buffer");
-					return mapptr(ptr, type, *this);
-				}
-
-				inline bool mapped() { return _mapped; }
-			protected:
-				~map_safe() {}
-				map_safe() : _mapped(false) {}
-			private:
-				bool _mapped;
-			};
+			inline bool mapped() { return _mapped; }
+		protected:
+			~map_safe() {}
+			map_safe() : _mapped(false) {}
+		private:
+			bool _mapped;
 		};
 
 		template <class ExceptionPolicy,
@@ -377,8 +243,8 @@ namespace glwl {
 			typedef typename checker::code errcode;
 
 			basic_raw(_STD _Uninitialized) : _id(0) {}
-			basic_raw() { checker::construct(glGenBuffers, 1, &_id); }
-			~basic_raw() { checker::destruct(glDeleteBuffers, 1, &_id); }
+			basic_raw() { glGenBuffers(1, &_id); }
+			~basic_raw() { glDeleteBuffers(1, &_id); }
 
 			basic_raw(const basic_raw& src) = delete;
 			basic_raw(basic_raw&& src) : _id(src._id) { src._id = 0; }
@@ -409,9 +275,9 @@ namespace glwl {
 			GLuint _id;
 		};
 
-		template <class ExceptionPolicy = a::std_check,
-			template<class> class MutablePolicy = b::dynamic,
-			template<class, template<class> class> class MapPolicy = c::map_safe>
+		template <class ExceptionPolicy = std_check,
+			template<class> class MutablePolicy = dynamic,
+			template<class, template<class> class> class MapPolicy = map_safe>
 		class raw :
 			protected basic_raw<ExceptionPolicy, MutablePolicy, MapPolicy> {
 		private:
@@ -525,7 +391,7 @@ namespace glwl {
 				template <class BufferTy>
 				class impl {
 				public:
-					inline GLuint cache_capacity() const { return NULL; }
+					inline static GLuint cache_capacity() { return NULL; }
 					inline GLuint cache_size() const { return NULL; }
 
 					inline GLintptr tell() const { return _offset; }
@@ -579,6 +445,12 @@ namespace glwl {
 						if (len > _buf->capacity()) _buf->resize(len);
 						unsafe::write(size, data);
 					}
+					inline void write(GLuint offset, GLuint size, const char* data) {
+						GLuint off = _offset + offset;
+						GLuint len = off + size;
+						if (len > _buf->capacity()) _buf->resize(len);
+						unsafe::write(off, size, data);
+					}
 				protected:
 					impl(BufferTy* buf, GLuint pos) : unsafe(buf, pos) {}
 					~impl() {}
@@ -590,7 +462,7 @@ namespace glwl {
 				template <class BufferTy>
 				class impl {
 				public:
-					inline GLuint cache_capacity() const { return CacheSize; }
+					inline static GLuint cache_capacity() { return CacheSize; }
 					inline GLuint cache_size() const { return _last - _base; }
 
 					inline GLintptr tell() { return _offset + (_last - _base); }
@@ -616,7 +488,7 @@ namespace glwl {
 						_STD memcpy(_last, data, size);
 						_last += size; }
 					inline void write(GLuint offset, GLuint size, const char* data) {
-						_STD memcpy(_last + offset, data, size); }
+						_STD memcpy(_base + offset, data, size); }
 				protected:
 					impl(BufferTy* buf, GLuint pos) 
 						: _buf(buf), _last(_base), _offset(pos) {
@@ -656,7 +528,7 @@ namespace glwl {
 					inline void save() { _save(_last - _base); }
 					inline void flush() {
 						GLuint size = _last - _base;
-						_save(size); _offset += size;
+						_save(size); _offset += size; 
 					}
 
 					inline BufferTy* rdbuf() const { return unsafe::rdbuf(); }
@@ -668,8 +540,7 @@ namespace glwl {
 						if (size > CacheSize) {
 							flush();
 							_bufwrite(size, data);
-							return;
-						}
+							return; }
 						GLuint capacity = _end - _last;
 						GLint tail = size - capacity;
 						if (tail < 0) { unsafe::write(size, data); return; }
@@ -678,6 +549,18 @@ namespace glwl {
 						_bufwrite(CacheSize, _base);
 						_last = _base;
 						unsafe::write(tail, data);
+					}
+
+					inline void write(GLuint offset, GLuint size, const char* data) {
+						if (_last != _base) throw 1;
+						if (offset + size >= CacheSize) 
+							{ unsafe::write(offset, size, data); }
+						else {
+							GLuint off = _offset + offset;
+							GLuint len = off + size;
+							if (len > _buf->capacity()) _buf->resize(len);
+							_buf->write(off, size, data);	
+						}
 					}
 
 					impl(BufferTy* buf, GLuint pos) : unsafe(buf, pos), _end(_base + CacheSize) {}

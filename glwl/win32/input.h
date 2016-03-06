@@ -49,7 +49,7 @@ namespace glwl {
 			short type;
 		};
 
-		input() : input(glwlGetWindow().handle(), GetModuleHandle(NULL)) {}
+		input() : input(_GLWL app::instance().handle(), GetModuleHandle(NULL)) {}
 		input(HWND hWnd, HINSTANCE hInstance = GetModuleHandle(NULL)) {
 			DirectInput8Create(hInstance, DIRECTINPUT_VERSION,
 				IID_IDirectInput8, (void**)&_main_dev, NULL);

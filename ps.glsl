@@ -1,6 +1,6 @@
 #version 330 core
 
-uniform sampler2D texture;
+uniform sampler2D sampler;
 
 struct PointLight {
 	bool enable;
@@ -24,6 +24,7 @@ struct Material {
 	vec4 emission;
 	float shininess;
 	float roughness;
+	float solid;
 };
 
 uniform MaterialBlock { 
@@ -44,10 +45,8 @@ in vec2 vOutTexCoord;
 out vec4 vFragColor;
 
 void main() {
-	//if(!ambient) { vFragColor = material.emission * material.emission.w; return; }
 	vFragColor = light.ambient * light.ambient.w * 
 		material.ambient * material.ambient.w + material.emission * material.emission.w;
-	//if(!diffuse) return;
 
 	vec4 materialDiff = material.diffuse * material.diffuse.w;
 	vec4 materialSpec = material.specular * material.specular.w;
@@ -63,6 +62,7 @@ void main() {
 	for (int i = 0; i < light.point_cnt; i++) {
 		if(!light.point[i].enable) continue;
 		Color = light.point[i].color * light.point[i].color.w;
+		vFragColor.a = material.solid;
 
 		L = light.point[i].position - vOutWorldPos;
 		float attenuation = length(L); L /= attenuation;
@@ -73,9 +73,6 @@ void main() {
 	
 		NdotL = max(0, dot(L, N));
 		vFragColor += Color * materialDiff * NdotL * attenuation;
-
-		//R = reflect(-L, N);
-		//vFragColor += Color * materialSpec * max(0, pow(dot(R, V), 16)) * attenuation;
 
 		H = normalize(V + L);
 		NdotH = max(dot(N, H), 1.0e-7);
@@ -95,5 +92,6 @@ void main() {
 		K = min(1.0, (F*G*D)/(NdotV*NdotL + 1.0e-7));
 
 		vFragColor += Color * materialSpec * K * attenuation;
+		vFragColor *= texture(sampler, vOutTexCoord).rgba;
 	}
 }

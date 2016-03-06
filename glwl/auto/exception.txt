@@ -1,0 +1,51 @@
+namespace error
+	namespace buf
+		class std
+			glUnmapBuffer 1 1 "Type: %s"
+			
+			glBindBuffer  2 1 "Type: %s" "ID: %d"
+			
+			glBindBufferBase 3 1 "Type: %s" "BindIdx: %d" "ID: %d\n"
+			
+			glBufferData    4 9 "Type: %s" "Size: %d" "Data: %x" "Usage: %s"
+			glBufferStorage 4 1 "Type: %s" "Size: %d" "Data: %x" "Flags: %x"
+			glBufferSubData 4 1 "Type: %s" "Offset: %d" "Size: %d" "Data: %x"
+			
+			glBindBufferRange   5 1 "Type: %s" "BindIdx: %d" 
+					"ID: %x" "Offset: %d" "Size: %d"
+			glCopyBufferSubData 5 3 "Target1: %s" "Target2: %s" 
+					"Offset1: %d" "Offset2: %d" "Size: %d"
+		~class
+	~namespace
+	
+	namespace shader
+		class std
+			glCompileShader 1 0 "ID: %d"
+			glDeleteShader  1 0 "ID: %d"
+			
+			glAttachShader 2 0 "ProgramID: %d" "ShaderID: %d"
+			glDetachShader 2 0 "ProgramID: %d" "ShaderID: %d"
+			
+			glGetShaderiv  3 2 "ID: %d" "ParamName: %s" "Data: %x"
+			
+			glShaderSource     4 0 "ID: %d" "Count: %d" "Data: %x" "Length: %d"
+			glGetShaderInfoLog 4 0 "ID: %d" "BufSize: %d" "Length: %d" "Data: %x"
+		~class
+	~namespace
+	
+	namespace texture
+		class std
+			glBindTexture 2 1 "Target: %s" "ID: %d"
+			
+			glTexParameteri 3 7 "Target: %s" "Setting: %s" "Param: %x"
+			
+			glCompressedTexImage2D 8 5 "Target: %s" "Level: %d" "InternalFormat: %s"
+					"Width: %d" "Height: %d" "Border: %d" "ImdSize: %d" "Data: %x"
+			
+			glTexImage2D 9 197 "Target: %s" "Level: %d" "InternalFormat: %s"
+				"Width: %d" "Height: %d" "Border: %d" "PixelFormat: %s"
+				"PixelType: %s" "Data: %x"
+		~class
+	~namespace
+~namespace
+		

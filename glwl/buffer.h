@@ -8,9 +8,9 @@ namespace glwl {
 		template <
 			typename IndexTy,
 			typename BufferTy = buf::raw <
-			buf::a::std_check,
-			buf::b::dynamic,
-			buf::c::map_none >
+			error::buf::std,
+			buf::dynamic,
+			buf::map_none >
 		>
 		class ibo : public BufferTy {
 		public:
@@ -34,9 +34,9 @@ namespace glwl {
 
 		template <
 			typename BufferTy = buf::raw <
-			buf::a::std_check,
-			buf::b::dynamic,
-			buf::c::map_none >
+			error::buf::std,
+			buf::dynamic,
+			buf::map_none >
 		>
 		class vbo : public BufferTy {
 		public:
@@ -69,6 +69,67 @@ namespace glwl {
 			GLWL_ASSIG_RV_STD(ubo)
 			GLWL_ASSIG_LV_STD(ubo)
 		};*/
+
+		namespace c {
+			template <class CachePolicy>
+			class no_check { bool full(size_t size) { return false; } };
+
+			template <class CachePolicy>
+			class check {
+				bool full(size_t size) {
+					if (size < CachePolicy::cache_capacity())
+						return true;
+					return false;
+				}
+			};
+		};
+
+		template <
+			class BufferTy,
+			class CachePolicy,
+			template <class> class BindPolicy,
+			template <class> class CheckPolicy>
+		class ubo_stream :
+			public basic_stream_impl<BufferTy, CachePolicy::impl, BindPolicy>,
+			private CheckPolicy<typename CachePolicy::impl> {
+		private:
+			typedef basic_stream_impl<BufferTy, CachePolicy::impl, BindPolicy> base;
+			typedef ubo_stream<BufferTy, CachePolicy, BindPolicy, CheckPolicy> mytype;
+			typedef CheckPolicy<typename CachePolicy::impl> checker;
+		public:
+			ubo_stream(BufferTy* buf, GLuint pos = NULL) : stream(buf, pos), _off(NULL) {}
+			GLWL_CTOR_LV_DELETE(ubo_stream)
+
+			template <typename ElemTy>
+			inline void read(size_t size, ElemTy* data) {
+				base::read(size*sizeof(ElemTy), (char*)data);
+			}
+			template <typename ElemTy>
+			inline void write(size_t size, const ElemTy* data) {
+				if (checker::full(size)) {
+					base::shift(out.offset);
+					base::write(1, &out.value);
+					base::shift(-out.offset);
+				} else base::unsafe::write(_off, size*sizeof(ElemTy), (const char*)data);
+			}
+
+			template <typename ElemTy>
+			inline mytype& operator<<(const ElemTy& out) { write(1, &out); return *this; }
+			template <typename ElemTy>
+			inline mytype& operator<<(_STD initializer_list<ElemTy> out) { write(out.size(), out.begin()); return *this; }
+
+			template <typename ElemTy, unsigned Size>
+			inline mytype& operator>>(ElemTy out[Size]) { read(Size*sizeof(ElemTy), out); return *this; }
+			template <typename ElemTy>
+			inline mytype& operator>>(ElemTy& out) { read(sizeof(ElemTy), &out); return *this; }
+
+			inline base& operator<<(base&(*manip)(base&)) { manip(*this); return *this; }
+			inline const base& operator>>(const base&(*manip)(const base&)) const { manip(*this); return *this; }
+
+			mytype& operator[](GLintptr offset) { _off = offset; return *this; }
+		private:
+			GLintptr _off;
+		};
 	};
 
 	class uniform {
@@ -85,6 +146,10 @@ namespace glwl {
 		class block {
 		public:
 			block(GLuint program, GLuint block_index) : _prog(program), _id(block_index) {}
+			block(GLuint program, const char* block_name) : _prog(program) {
+				_id = glGetUniformBlockIndex(_prog, block_name);
+				if (_id == GL_INVALID_INDEX) throw _GLWL exception("Uniform block %s not found!", block_name);
+			}
 
 			enum {
 				size = GL_UNIFORM_BLOCK_DATA_SIZE,

@@ -22,7 +22,7 @@ namespace fractal {
 			for (GLuint i = 0; i < size; i++) {
 				pos = *((glm::vec3*)(&primitives[i][3]));
 				half = primitives[i][0][0] / 3;
-				len = half * 3/2.15f;
+				len = half * 2;
 
 				_push(newvec, pos + glm::vec3( len,  len, 0), half);
 				_push(newvec, pos + glm::vec3( len, -len, 0), half);

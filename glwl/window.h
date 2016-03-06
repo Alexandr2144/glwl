@@ -9,11 +9,11 @@ glwl::window& glwlGetWindow();
 #include "win32\input.h"
 #include "win32\file.h"
 
-void glwlInitSetWindowName(LPWSTR name) { glwl::window::init.wnd_name = name; }
-void glwlInitSetWindowClassName(LPWSTR class_name) { glwl::window::init.wnd_class_name = class_name; }
+//void glwlInitSetWindowName(LPWSTR name) { glwl::window::init.wnd_name = name; }
+//void glwlInitSetWindowClassName(LPWSTR class_name) { glwl::window::init.wnd_class_name = class_name; }
 
 #endif //_WIN32
-
+/*
 void glwlInitSetWindowSize(int width, int height) {
 	glwl::window::init.width = width;
 	glwl::window::init.height = height;
@@ -34,4 +34,4 @@ void glwlShowWindow() { glwl::window::instance().show(); }
 template <typename LambdaTy>
 void glwlMainLoop(LambdaTy display) { glwl::window::instance().loop(display); }
 
-glwl::window& glwlGetWindow() { return glwl::window::instance(); }
+glwl::window& glwlGetWindow() { return glwl::window::instance(); }*/
