@@ -1,0 +1,157 @@
+#version 330 core
+
+struct PointLight {
+	bool enable;
+	vec4 color;
+	vec3 position;
+	vec3 attenuation;
+};
+
+struct Light {
+	vec3 camera;
+	vec4 ambient;
+
+	int point_cnt;
+	PointLight point;
+};
+
+struct Material {
+	vec4 ambient;
+	vec4 diffuse;
+	vec4 specular;
+	vec4 emission;
+	float shininess;
+	float roughness;
+	float solid;
+};
+
+uniform MaterialBlock { 
+	Material material; };
+uniform LightBlock {
+	Light light;
+
+	bool ambient;
+	bool diffuse;
+	bool specular;
+	bool phong;
+};
+
+in vec3 vOutWorldPos;
+in vec3 vOutViewPos;
+
+out vec4 vFragColor;
+
+vec3 trace(vec3 Start, vec3 Direction, vec3 Center, float Radius)
+{
+	Direction = normalize(Direction);
+	vec3 Ray, Z, tZ, pw3, pw4, pw5;
+	tZ = Start - Center;
+	Z.x = dot(Direction, Direction);
+	Z.y = dot(Direction, tZ);
+	Z.z = dot(tZ,tZ) - Radius*Radius;
+	tZ.z = Z.y*Z.y-Z.x*Z.z;
+	if(tZ.z < 0) return vec3(100,100,100);
+
+	Ray = Start + Direction*((-Z.y-sqrt(tZ.z))/Z.x);
+	Direction = Direction*((-Z.y+sqrt(tZ.z))/Z.x)-Direction*((-Z.y-sqrt(tZ.z))/Z.x);
+	Direction /= 100;
+	//Ray += Start;
+	Z = vec3(0, 0, 0);
+
+	for(int Count = 0; Count < 75; Count++)
+	{
+		for(int i = 0; i < 6; i++){
+			if(dot(Z,Z) > 2) break;
+			pw3 = Z*Z*Z;
+			pw4 = pw3*Z;
+			pw5 = pw4*Z;
+
+			tZ.x = pw5.x-10*pw3.x*dot(Z.yz,Z.yz)+5*Z.x*(pw4.y+pw4.z+Z.y*Z.y*Z.z*Z.z);
+			tZ.y = pw5.y-10*pw3.y*dot(Z.xz,Z.xz)+5*Z.y*(pw4.x+pw4.z+Z.x*Z.x*Z.z*Z.z);
+			tZ.z = pw5.z-10*pw3.z*dot(Z.xy,Z.xy)+5*Z.z*(pw4.x+pw4.y+Z.y*Z.y*Z.x*Z.x);
+
+			Z = tZ+Ray;
+		}
+		if(dot(Z,Z) < 2) return Ray;
+		Z = vec3(0, 0, 0);
+		Ray += Direction;
+	}
+	return vec3(100,100,100);
+}
+
+void main() {
+vFragColor = vec4(vOutWorldPos, 0);
+//return;
+
+	vec3 dir = normalize(vOutWorldPos-vOutViewPos);
+
+	vec3 vWorldPos = trace(vOutWorldPos, dir, vec3(0, 0, 0), min(2, length(vOutViewPos)));
+	vWorldPos = trace(vWorldPos, dir, vWorldPos, 0.5);
+	//vWorldPos = trace(vWorldPos, dir, vWorldPos, 0.125);
+	vWorldPos = trace(vWorldPos, dir, vWorldPos, 0.03125);
+	//vWorldPos = trace(vWorldPos, dir, vWorldPos, 0.0078125);
+	vWorldPos = trace(vWorldPos, dir, vWorldPos, 0.001953125);
+	//vWorldPos = trace(vWorldPos, dir, vWorldPos, 0.00048828125);
+
+	vec3 u = dFdx(vWorldPos);
+	vec3 v = dFdy(vWorldPos);
+	vec3 N = normalize(cross(u, v));
+
+	vFragColor = light.ambient * light.ambient.w * 
+		material.ambient * material.ambient.w + material.emission * material.emission.w;
+
+	vec4 materialDiff = material.diffuse * material.diffuse.w;
+	vec4 materialSpec = material.specular * material.specular.w;
+	vec4 Color;
+
+	vec3 L, R, H;
+	vec3 V = -normalize(vOutViewPos - vWorldPos);
+	
+	float NdotL, NdotH, NdotV, VdotH, attenuation;
+	float NdotH2, NdotH2_r, m2;
+	float G, F, D, K;
+
+	Color = light.point.color * light.point.color.w;
+
+	L = light.point.position - vWorldPos;
+	attenuation = length(L); L /= attenuation;
+	attenuation = 1/(
+		light.point.attenuation.x + 
+		attenuation*light.point.attenuation.y + 
+		attenuation*attenuation*light.point.attenuation.z);
+	
+	NdotL = max(0, dot(L, N));
+	vFragColor += Color * materialDiff * NdotL * attenuation;
+
+		H = normalize(V + L);
+		NdotH = max(dot(N, H), 1.0e-7);
+		NdotV = max(dot(N, V), 0.0);
+		VdotH = max(dot(V, H), 0.0);
+
+		G = 2.0*NdotH / VdotH;
+		G = min(1.0, G * min(NdotV, NdotL));
+
+		m2 = material.roughness * material.roughness;
+		NdotH2 = NdotH * NdotH;
+		NdotH2_r = 1.0 / (NdotH2 * m2);
+		D = exp((NdotH2 - 1.0) * ( NdotH2_r )) * NdotH2_r / (4.0 * NdotH2 );
+
+		F = 1.0 / (1.0 + NdotV);
+
+		K = min(1.0, (F*G*D)/(NdotV*NdotL + 1.0e-7));
+
+		vFragColor += Color * materialSpec * K * attenuation;
+
+	float a = length(vWorldPos);
+	if(a < 0.6)
+		vFragColor = vec4(vFragColor.r/2,vFragColor.g/2+(a-0.4),vFragColor.b/2,1);
+	else if(a < 0.8)
+		vFragColor = vec4(vFragColor.r/2,vFragColor.g/2+(0.8-a),vFragColor.b/2+(a-0.6),1);
+	else if(a < 1.0)
+		vFragColor = vec4(vFragColor.r/2+exp((a-0.8)*10-2)/5,vFragColor.g/2,vFragColor.b/2+exp((1-a)*10-2)/5,1);
+	else if(a < 1.6)
+		vFragColor = vec4(vFragColor.r/2+(1.6-a)/3,vFragColor.g/2+(a-1)/3,vFragColor.b/2,1);
+	else vFragColor = vec4(0,0,0,1);
+	//vFragColor = 
+	return;
+}
